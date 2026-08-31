@@ -4,6 +4,8 @@ This project checks authorized staff records through the Lifesaving Society Albe
 Northwest Territories verification page and produces a certification grid — one row per
 staff member, one column per award type — as an Excel workbook and a PDF.
 
+**Documentation: [williamvdg.me/ucac-certs](https://williamvdg.me/ucac-certs/)**
+
 ## How expiry is determined
 
 **The Society does not publish expiry dates.** A member page lists only the award title

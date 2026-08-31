@@ -1,0 +1,8 @@
+Images for this site.
+
+`logo.png` here becomes the site logo when `theme.logo` is set in mkdocs.yml.
+`favicon.svg` here overrides the shared default.
+
+Existing repos already keep screenshots in this folder and reference them
+from the root README by absolute raw.githubusercontent.com URL. Do not move
+or rename those files — the README links break silently.
