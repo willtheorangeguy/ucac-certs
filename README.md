@@ -168,12 +168,6 @@ The workbook's second sheet lists anything needing a human:
 - **Status disagreement** — our computed expiry contradicts the Society's own flag.
 - **Provisional** — a first aid cell credited from a CPR award.
 
-## Email delivery
-
-`--email` still sends both attachments over SMTP if `.env` is configured (copy
-`.env.example`). This path is being replaced by the web application's Resend integration
-and is not being developed further.
-
 ## CI
 
 GitHub Actions runs the tests on push and deploys on `main`. No scraping, roster data, or

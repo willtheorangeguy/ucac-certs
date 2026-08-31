@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import hmac
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -107,9 +106,6 @@ class Auth:
         except Exception:
             return None
         return email if self.settings.is_manager(email) else None
-
-    def constant_time_equals(self, left: str, right: str) -> bool:
-        return hmac.compare_digest(left, right)
 
     def purge_expired(self) -> None:
         cutoff = (_now() - timedelta(days=1)).isoformat()

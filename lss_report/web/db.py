@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+import threading
 from contextlib import contextmanager
 from importlib import resources
 from pathlib import Path
@@ -33,22 +34,29 @@ class Database:
     def __init__(self, path: Path) -> None:
         self.path = path
         self._connection = connect(path)
+        # One connection is shared by request threads and the scan worker. Without
+        # this lock a rollback in one thread would discard another thread's
+        # uncommitted rows, because the transaction belongs to the connection.
+        self._lock = threading.RLock()
         initialise(self._connection)
 
     @contextmanager
     def write(self) -> Iterator[sqlite3.Connection]:
-        try:
-            yield self._connection
-        except Exception:
-            self._connection.rollback()
-            raise
-        self._connection.commit()
+        with self._lock:
+            try:
+                yield self._connection
+            except Exception:
+                self._connection.rollback()
+                raise
+            self._connection.commit()
 
     def query(self, sql: str, parameters: tuple = ()) -> list[sqlite3.Row]:
-        return self._connection.execute(sql, parameters).fetchall()
+        with self._lock:
+            return self._connection.execute(sql, parameters).fetchall()
 
     def query_one(self, sql: str, parameters: tuple = ()) -> sqlite3.Row | None:
-        return self._connection.execute(sql, parameters).fetchone()
+        with self._lock:
+            return self._connection.execute(sql, parameters).fetchone()
 
     def close(self) -> None:
         self._connection.close()

@@ -79,18 +79,3 @@ def load_staff_file(path: Path) -> list[StaffMember]:
         return load_staff_json(path.read_text(encoding="utf-8"))
     except OSError as exc:
         raise ConfigurationError(f"Unable to read staff file: {exc}") from exc
-
-
-def load_recipients(raw: str) -> list[str]:
-    try:
-        value = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise ConfigurationError("REPORT_RECIPIENTS must be a JSON array.") from exc
-    if not isinstance(value, list) or not value:
-        raise ConfigurationError("REPORT_RECIPIENTS must be a non-empty JSON array.")
-    recipients: list[str] = []
-    for item in value:
-        if not isinstance(item, str) or "@" not in item or "\n" in item or "\r" in item:
-            raise ConfigurationError("REPORT_RECIPIENTS contains an invalid address.")
-        recipients.append(item.strip())
-    return recipients

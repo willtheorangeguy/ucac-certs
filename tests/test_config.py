@@ -1,6 +1,6 @@
 import pytest
 
-from lss_report.config import ConfigurationError, load_env_file, load_recipients, load_staff_json
+from lss_report.config import ConfigurationError, load_env_file, load_staff_json
 
 
 def test_load_staff_normalizes_codes_and_whitespace():
@@ -24,22 +24,16 @@ def test_invalid_staff_is_rejected(raw):
         load_staff_json(raw)
 
 
-def test_recipients_are_json_and_reject_header_injection():
-    assert load_recipients('["manager@example.com"]') == ["manager@example.com"]
-    with pytest.raises(ConfigurationError):
-        load_recipients('["manager@example.com\\nBcc: bad@example.com"]')
-
-
 def test_load_env_file_without_overriding_existing_value(monkeypatch, tmp_path):
-    monkeypatch.setenv("SMTP_HOST", "already-set.example.com")
+    monkeypatch.setenv("BASE_URL", "https://already-set.example.org")
     env_file = tmp_path / ".env"
     env_file.write_text(
-        '# local settings\nSMTP_HOST="file.example.com"\nSMTP_PORT=587\n',
+        '# local settings\nBASE_URL="https://file.example.org"\nSCAN_HOUR=6\n',
         encoding="utf-8",
     )
     load_env_file(env_file)
-    assert __import__("os").environ["SMTP_HOST"] == "already-set.example.com"
-    assert __import__("os").environ["SMTP_PORT"] == "587"
+    assert __import__("os").environ["BASE_URL"] == "https://already-set.example.org"
+    assert __import__("os").environ["SCAN_HOUR"] == "6"
 
 
 def test_load_env_file_rejects_invalid_lines(tmp_path):

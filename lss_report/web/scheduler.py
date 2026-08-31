@@ -30,11 +30,15 @@ class Scheduler:
         runner: ScanRunner,
         scan_repo: ScanRepository,
         reminders: Reminders,
+        auth=None,
     ) -> None:
         self.settings = settings
         self.runner = runner
         self.scan_repo = scan_repo
         self.reminders = reminders
+        # Spent login tokens and rate-limit rows are cleared on the daily pass so
+        # they do not accumulate between restarts.
+        self.auth = auth
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._last_reminder_date: date | None = None
@@ -73,6 +77,8 @@ class Scheduler:
         if now.hour == self.settings.reminder_hour and self._last_reminder_date != now.date():
             self._last_reminder_date = now.date()
             self._send_reminders(now.date())
+            if self.auth is not None:
+                self.auth.purge_expired()
 
     def _scanned_today(self, today: date) -> bool:
         latest = self.scan_repo.latest()

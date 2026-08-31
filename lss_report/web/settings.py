@@ -40,6 +40,10 @@ class Settings:
         return bool(self.resend_api_key)
 
     @property
+    def is_local(self) -> bool:
+        return any(host in self.base_url for host in ("127.0.0.1", "localhost", "testserver"))
+
+    @property
     def sms_configured(self) -> bool:
         return bool(
             self.sms_enabled

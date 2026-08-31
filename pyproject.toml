@@ -31,7 +31,7 @@ lss-web = "lss_report.web.server:main"
 include = ["lss_report*"]
 
 [tool.setuptools.package-data]
-lss_report = ["web/schema.sql", "web/templates/*.html", "web/static/*"]
+lss_report = ["web/schema.sql", "web/templates/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

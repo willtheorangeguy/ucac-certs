@@ -4,11 +4,22 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 dist/
-report.pdf
-report.xlsx
-staff.json
+build/
+
+# Secrets and local config
 .env
+.env.*
+!.env.example
+
+# Staff data. These carry real names, Lifesaving Society member IDs and expiry
+# dates, so nothing matching them may ever reach the repository.
+staff.json
 data/
 *.sqlite3
 *.sqlite3-wal
 *.sqlite3-shm
+*.xlsx
+*.pdf
+Cert Form*
+report.*
+!staff.example.json

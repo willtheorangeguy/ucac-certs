@@ -46,7 +46,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     email_channel = EmailChannel(settings)
     reminders = Reminders(database, settings, [email_channel, SmsChannel(settings)])
     templates = Jinja2Templates(directory=str(TEMPLATES))
-    scheduler = Scheduler(settings, runner, scan_repo, reminders)
+    scheduler = Scheduler(settings, runner, scan_repo, reminders, auth=auth)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
