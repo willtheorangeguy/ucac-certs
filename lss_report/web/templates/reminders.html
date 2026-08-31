@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% set page = 'reminders' %}
+{% block title %}Reminders{% endblock %}
+{% block content %}
+<h1>Reminders</h1>
+
+<div class="panel">
+  <p class="muted">
+    Staff are emailed automatically at
+    {% for t in thresholds %}{{ t }}{% if not loop.last %}, {% endif %}{% endfor %}
+    days before a certification expires, once each, at
+    {{ '%02d'|format(reminder_hour) }}:00 Mountain time. Nothing here is sent by hand.
+    Staff with no email address on file are skipped.
+  </p>
+</div>
+
+<div class="panel">
+  <h2 style="font-size:1rem;margin-top:0">Scheduled over the next 60 days</h2>
+  {% if not has_scan %}
+    <p>Run a scan first — the schedule is built from the most recent results.</p>
+  {% elif upcoming %}
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>Sends on</th><th>In</th><th>Staff</th><th>Cert</th><th>Expires</th><th>To</th></tr>
+        </thead>
+        <tbody>
+          {% for item in upcoming %}
+          <tr>
+            <td>{{ item.send_on }}</td>
+            <td>{{ item.days_until_send }}d</td>
+            <td>{{ item.society_name or item.name }}</td>
+            <td>{{ item.column_code }} &nbsp;<span class="muted">({{ item.threshold }}d notice)</span></td>
+            <td>{{ item.expiry_date }}</td>
+            <td>
+              {% if not item.email %}
+                <span style="color:var(--expired)">no email on file &mdash; will be skipped</span>
+              {% elif item.already_sent %}
+                <span class="muted">{{ item.email }} (already sent)</span>
+              {% else %}
+                {{ item.email }}
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>Nothing due in the next 60 days.</p>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <h2 style="font-size:1rem;margin-top:0">Already sent</h2>
+  {% if history %}
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>Sent</th><th>Staff</th><th>Cert</th><th>Notice</th><th>Expiry</th><th>To</th></tr>
+        </thead>
+        <tbody>
+          {% for item in history %}
+          <tr>
+            <td>{{ item.sent_at[:16].replace('T', ' ') }}</td>
+            <td>{{ item.society_name or item.name }}</td>
+            <td>{{ item.column_code }}</td>
+            <td>{{ item.threshold }}d</td>
+            <td>{{ item.expiry_date }}</td>
+            <td>{{ item.email or '' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">Times are UTC. Most recent 200 shown.</p>
+  {% else %}
+    <p>No reminders have been sent yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

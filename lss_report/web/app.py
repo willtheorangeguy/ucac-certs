@@ -19,7 +19,7 @@ from ..pdf import build_pdf
 from .. import theme
 from .auth import SESSION_COOKIE, Auth
 from .db import Database
-from .notify import EmailChannel, Message, Reminders, SmsChannel
+from .notify import EmailChannel, Message, Reminders
 from .repository import (
     DuplicateMemberCode,
     ScanRepository,
@@ -43,7 +43,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     auth = Auth(database, settings)
     runner = ScanRunner(staff_repo, scan_repo)
     email_channel = EmailChannel(settings)
-    reminders = Reminders(database, settings, [email_channel, SmsChannel(settings)])
+    reminders = Reminders(database, settings, [email_channel])
     templates = Jinja2Templates(directory=str(TEMPLATES))
     scheduler = Scheduler(settings, runner, scan_repo, reminders, auth=auth)
 
@@ -171,7 +171,6 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
         email: str = Form(""),
         phone: str = Form(""),
         away: bool = Form(False),
-        sms_consent: bool = Form(False),
     ):
         code = member_code.strip().upper()
         if not code.isalnum():
@@ -182,7 +181,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
         if not result.ok:
             return _staff_error(f"{code}: {result.error}")
         try:
-            staff = staff_repo.add(
+            staff_repo.add(
                 name=name,
                 member_code=code,
                 society_name=result.society_name,
@@ -193,10 +192,6 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             )
         except DuplicateMemberCode as exc:
             return _staff_error(str(exc))
-        if sms_consent and staff.phone:
-            staff_repo.update(
-                staff.id, actor=user, sms_consent_at=datetime.now(TIMEZONE).isoformat()
-            )
         return RedirectResponse("/staff", status_code=303)
 
     @app.post("/staff/{staff_id}/adopt-name")
@@ -267,6 +262,23 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             "diagnostics.html",
             user=user,
             notes=scan_repo.notes(scan_id) if scan_id else [],
+        )
+
+    @app.get("/reminders", response_class=HTMLResponse)
+    def reminders_page(request: Request, user: str = Depends(current_user)):
+        scan_id = scan_repo.latest_complete_id()
+        today = datetime.now(TIMEZONE).date()
+        return render(
+            request,
+            "reminders.html",
+            user=user,
+            upcoming=scan_repo.upcoming(scan_id, settings.reminder_days, today)
+            if scan_id
+            else [],
+            history=scan_repo.history(),
+            thresholds=settings.reminder_days,
+            reminder_hour=settings.reminder_hour,
+            has_scan=scan_id is not None,
         )
 
     @app.get("/healthz")

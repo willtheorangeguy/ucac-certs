@@ -14,7 +14,6 @@ from .settings import Settings
 logger = logging.getLogger(__name__)
 
 RESEND_ENDPOINT = "https://api.resend.com/emails"
-TWILIO_ENDPOINT = "https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
 
 
 class DeliveryError(RuntimeError):
@@ -72,35 +71,6 @@ class EmailChannel:
         )
         if response.status_code >= 400:
             raise DeliveryError(f"Resend rejected the message (HTTP {response.status_code}).")
-
-
-class SmsChannel:
-    """Twilio adapter. Written and tested, but off unless SMS_ENABLED and credentials are set.
-
-    Enabling it later is configuration only: create the Twilio account, buy a Canadian
-    number, complete A2P registration, set three secrets, flip SMS_ENABLED.
-    """
-
-    name = "sms"
-
-    def __init__(self, settings: Settings, session: requests.Session | None = None) -> None:
-        self.settings = settings
-        self.session = session or requests.Session()
-
-    def available(self) -> bool:
-        return self.settings.sms_configured
-
-    def send(self, message: Message) -> None:
-        if not self.available():
-            raise DeliveryError("SMS is not enabled.")
-        response = self.session.post(
-            TWILIO_ENDPOINT.format(sid=self.settings.twilio_account_sid),
-            auth=(self.settings.twilio_account_sid, self.settings.twilio_auth_token),
-            data={"From": self.settings.twilio_from, "To": message.to, "Body": message.body},
-            timeout=20,
-        )
-        if response.status_code >= 400:
-            raise DeliveryError(f"Twilio rejected the message (HTTP {response.status_code}).")
 
 
 def reminder_text(name: str, column_code: str, expiry: date, days: int) -> str:
@@ -186,9 +156,4 @@ class Reminders:
     def _target(entry: dict, channel: Channel) -> str | None:
         if channel.name == "email":
             return entry.get("email")
-        if channel.name == "sms":
-            # Never text a number without a recorded consent timestamp.
-            if not entry.get("sms_consent_at"):
-                return None
-            return entry.get("phone")
         return None

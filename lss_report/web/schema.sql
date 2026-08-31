@@ -76,7 +76,9 @@ CREATE TABLE IF NOT EXISTS notification_log (
 );
 
 -- The dedupe key: one reminder per staff member, award, expiry, ladder step and
--- channel. Re-running a scan or enabling SMS later cannot replay old reminders.
+-- channel. Re-running a scan, or adding a channel later, cannot replay old reminders.
+-- staff.phone and staff.sms_consent_at are retained but unused; they hold data for a
+-- possible future channel and dropping them would need a migration on a live database.
 CREATE UNIQUE INDEX IF NOT EXISTS notification_once
     ON notification_log (staff_id, column_code, expiry_date, threshold, channel);
 

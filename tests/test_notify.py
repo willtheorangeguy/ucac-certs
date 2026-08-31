@@ -3,7 +3,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from lss_report.web.notify import EmailChannel, Message, Reminders, SmsChannel
+from lss_report.web.notify import EmailChannel, Message, Reminders
 from lss_report.web.repository import ScanRepository, StaffRepository
 
 
@@ -43,8 +43,6 @@ def _entry(staff_id=1, **overrides):
         "name": "Robin Rivers",
         "society_name": None,
         "email": "robin@example.org",
-        "phone": "+15875550100",
-        "sms_consent_at": None,
     }
     return {**base, **overrides}
 
@@ -63,33 +61,7 @@ def test_email_channel_sends_one_recipient_per_call(settings):
     assert kwargs["json"]["to"] == ["robin@example.org"]
 
 
-def test_sms_is_unavailable_until_enabled_and_credentialled(settings):
-    assert SmsChannel(settings).available() is False
-    half = dataclasses.replace(settings, sms_enabled=True)
-    assert SmsChannel(half).available() is False
-    full = dataclasses.replace(
-        settings,
-        sms_enabled=True,
-        twilio_account_sid="AC1",
-        twilio_auth_token="secret",
-        twilio_from="+15875550000",
-    )
-    assert SmsChannel(full).available() is True
 
-
-def test_sms_never_goes_to_a_number_without_recorded_consent(staffed, settings):
-    channel = RecordingChannel("sms")
-    reminders = Reminders(staffed, settings, [channel])
-    assert reminders.send_due([_entry(sms_consent_at=None)]) == []
-    assert channel.sent == []
-
-
-def test_sms_goes_out_once_consent_is_recorded(staffed, settings):
-    channel = RecordingChannel("sms")
-    reminders = Reminders(staffed, settings, [channel])
-    sent = reminders.send_due([_entry(sms_consent_at="2026-08-01T00:00:00")])
-    assert len(sent) == 1
-    assert channel.sent[0].to == "+15875550100"
 
 
 def test_a_reminder_is_never_sent_twice(staffed, settings):
@@ -99,16 +71,6 @@ def test_a_reminder_is_never_sent_twice(staffed, settings):
     assert reminders.send_due([_entry()]) == []
     assert len(channel.sent) == 1
 
-
-def test_enabling_sms_later_does_not_replay_past_email_reminders(staffed, settings):
-    email = RecordingChannel("email")
-    Reminders(staffed, settings, [email]).send_due([_entry()])
-    sms = RecordingChannel("sms")
-    # A newly enabled channel sends its own first message, but email stays deduped.
-    both = Reminders(staffed, settings, [email, sms])
-    sent = both.send_due([_entry(sms_consent_at="2026-08-01T00:00:00")])
-    assert [item["channel"] for item in sent] == ["sms"]
-    assert len(email.sent) == 1
 
 
 def test_dry_run_previews_without_sending_or_recording(staffed, settings):

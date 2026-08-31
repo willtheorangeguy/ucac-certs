@@ -80,12 +80,40 @@ def test_diagnostics_page_renders_stored_notes(client):
     assert "Member ID was not found." in response.text
 
 
-def test_reminders_page_is_gone(client):
+def test_old_notifications_url_is_gone(client):
     assert client.get("/notifications").status_code == 404
 
 
-def test_nav_does_not_offer_a_reminders_tab(client):
-    assert "Reminders" not in client.get("/").text
+def test_reminders_page_lists_the_forward_schedule(client):
+    response = client.get("/reminders")
+    assert response.status_code == 200
+    # Robin's SI expires in 7 days, so the 7-day reminder sends today.
+    assert "Robin Rivers" in response.text
+    assert "SI" in response.text
+
+
+def test_reminders_page_flags_staff_with_no_email(client, populated):
+    from lss_report.web.repository import StaffRepository
+
+    StaffRepository(populated).update(1, actor="test", email=None)
+    assert "no email on file" in client.get("/reminders").text
+
+
+def test_reminders_page_shows_sent_history(client, populated):
+    with populated.write() as connection:
+        connection.execute(
+            "INSERT INTO notification_log (staff_id, column_code, expiry_date, threshold,"
+            " channel, sent_at) VALUES (1, 'NL', '2026-09-06', 7, 'email', '2026-08-30T07:00:00')"
+        )
+    text = client.get("/reminders").text
+    assert "2026-08-30 07:00" in text
+    assert "No reminders have been sent yet" not in text
+
+
+def test_reminders_page_mentions_no_sms(client):
+    text = client.get("/reminders").text.lower()
+    assert "sms" not in text
+    assert "twilio" not in text
 
 
 def test_excel_export_downloads(client):

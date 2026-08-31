@@ -6,7 +6,7 @@ from lss_report.web.auth import SESSION_COOKIE, Auth
 from lss_report.web.repository import StaffRepository
 from lss_report.web.scans import Verification
 
-PROTECTED = ["/", "/staff", "/diagnostics", "/export.xlsx", "/export.pdf"]
+PROTECTED = ["/", "/staff", "/reminders", "/diagnostics", "/export.xlsx", "/export.pdf"]
 
 
 @pytest.fixture

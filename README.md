@@ -79,14 +79,16 @@ double-fire. Set `DISABLE_SCHEDULER=1` to turn it off.
 
 ### Reminders
 
-Email through Resend is live (3,000/month free, 100/day; one recipient per call because Resend
-counts each recipient separately). Staff are reminded at 30, 14 and 7 days before expiry, once
-per channel.
+Email through Resend (3,000/month free, 100/day; one recipient per call because Resend counts
+each recipient separately). Staff are reminded at 30, 14 and 7 days before expiry, once each.
+Anyone without an email address on their roster entry is skipped.
 
-SMS is written and tested but **off**. Turning it on later is configuration, not code: create
-the Twilio account, buy a Canadian number, complete A2P registration (allow lead time), set
-`TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM`, and set `SMS_ENABLED=1`. A number
-is never texted without a recorded consent date, flag or no flag.
+Sending is entirely automatic — there is no manual send. The **Reminders** page is read-only:
+the schedule for the next 60 days above, everything already sent below, both drawn from the
+latest scan and `notification_log`.
+
+Delivery goes through a `Channel` protocol, so a second channel can be added later without
+touching the scheduler or the dedupe logic.
 
 ## Deployment
 
@@ -114,8 +116,8 @@ deploy token scoped to the app.
 ## Privacy
 
 Staff PII under PIPEDA: names, Society member IDs, emails, phone numbers. Access is limited to
-the manager allowlist, SMS consent is recorded explicitly per person, every roster change is
-written to an audit trail, and the SQLite volume should be backed up and snapshotted.
+the manager allowlist, every roster change is written to an audit trail, and the SQLite volume
+should be backed up and snapshotted.
 
 ## Command line
 

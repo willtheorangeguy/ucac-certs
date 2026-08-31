@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from ..config import ConfigurationError, load_staff_file
@@ -24,7 +24,6 @@ class Staff:
     email: str | None
     phone: str | None
     away: bool
-    sms_consent_at: str | None
 
     @property
     def display_name(self) -> str:
@@ -43,7 +42,6 @@ def _staff(row) -> Staff:
         email=row["email"],
         phone=row["phone"],
         away=bool(row["away"]),
-        sms_consent_at=row["sms_consent_at"],
     )
 
 
@@ -94,7 +92,7 @@ class StaffRepository:
         return self.get(staff_id)  # type: ignore[return-value]
 
     def update(self, staff_id: int, *, actor: str, **fields) -> Staff | None:
-        allowed = {"name", "society_name", "email", "phone", "away", "sms_consent_at"}
+        allowed = {"name", "society_name", "email", "phone", "away"}
         changes = {key: value for key, value in fields.items() if key in allowed}
         if not changes:
             return self.get(staff_id)
@@ -219,12 +217,61 @@ class ScanRepository:
             "SELECT kind, detail FROM scan_note WHERE scan_id = ? ORDER BY kind, detail", (scan_id,)
         )]
 
+    def upcoming(
+        self, scan_id: int, thresholds: tuple[int, ...], as_of: date, horizon_days: int = 60
+    ) -> list[dict]:
+        """Every reminder scheduled to fire between today and the horizon.
+
+        A reminder fires on expiry minus each threshold, so one certification can
+        appear up to three times on different dates.
+        """
+        rows = self.db.query(
+            "SELECT r.staff_id, r.column_code, r.expiry_date, r.status, s.name,"
+            " s.society_name, s.email FROM scan_result r JOIN staff s ON s.id = r.staff_id"
+            " WHERE r.scan_id = ? AND r.expiry_date IS NOT NULL AND s.removed_at IS NULL",
+            (scan_id,),
+        )
+        already = {
+            (row["staff_id"], row["column_code"], row["expiry_date"], row["threshold"])
+            for row in self.db.query(
+                "SELECT staff_id, column_code, expiry_date, threshold FROM notification_log"
+            )
+        }
+        upcoming = []
+        for row in rows:
+            expiry = date.fromisoformat(row["expiry_date"])
+            for threshold in thresholds:
+                when = expiry - timedelta(days=threshold)
+                if not (as_of <= when <= as_of + timedelta(days=horizon_days)):
+                    continue
+                entry = dict(row)
+                entry["threshold"] = threshold
+                entry["send_on"] = when.isoformat()
+                entry["days_until_send"] = (when - as_of).days
+                entry["already_sent"] = (
+                    row["staff_id"], row["column_code"], row["expiry_date"], threshold
+                ) in already
+                upcoming.append(entry)
+        upcoming.sort(key=lambda item: (item["send_on"], item["name"].casefold()))
+        return upcoming
+
+    def history(self, limit: int = 200) -> list[dict]:
+        return [
+            dict(row)
+            for row in self.db.query(
+                "SELECT n.sent_at, n.column_code, n.expiry_date, n.threshold, n.channel,"
+                " s.name, s.society_name, s.email FROM notification_log n"
+                " JOIN staff s ON s.id = n.staff_id ORDER BY n.sent_at DESC LIMIT ?",
+                (limit,),
+            )
+        ]
+
     def due(self, scan_id: int, thresholds: tuple[int, ...], as_of: date) -> list[dict]:
         """Cells whose expiry lands exactly on a reminder step."""
         wanted = {(as_of.toordinal() + days): days for days in thresholds}
         rows = self.db.query(
-            "SELECT r.staff_id, r.column_code, r.expiry_date, s.name, s.society_name, s.email,"
-            " s.phone, s.sms_consent_at FROM scan_result r JOIN staff s ON s.id = r.staff_id"
+            "SELECT r.staff_id, r.column_code, r.expiry_date, s.name, s.society_name, s.email"
+            " FROM scan_result r JOIN staff s ON s.id = r.staff_id"
             " WHERE r.scan_id = ? AND r.expiry_date IS NOT NULL AND s.removed_at IS NULL",
             (scan_id,),
         )

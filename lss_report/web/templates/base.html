@@ -48,6 +48,7 @@
 <header>
   <a href="/" {% if page=='dashboard' %}class="active"{% endif %}>Overview</a>
   <a href="/staff" {% if page=='staff' %}class="active"{% endif %}>Staff</a>
+  <a href="/reminders" {% if page=='reminders' %}class="active"{% endif %}>Reminders</a>
   <a href="/diagnostics" {% if page=='diagnostics' %}class="active"{% endif %}>Diagnostics</a>
   <span class="spacer">{{ user }}</span>
   <form method="post" action="/logout"><button class="danger">Sign out</button></form>
