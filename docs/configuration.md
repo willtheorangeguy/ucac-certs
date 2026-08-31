@@ -133,7 +133,7 @@ For production values, see [Deployment](deployment.md).
 |---|---|---|---|
 | `name` | string | yes | Roster spelling. Used only as a cross-check; lookups key off the member ID. |
 | `memberCode` | string | yes | Lifesaving Society member ID. Letters and digits only; upper-cased on load. |
-| `away` | boolean | no | Moves the member into the "Away Spring / Summer" section. Defaults to `false`. |
+| `away` | boolean | no | Moves the member into the "Away" section. Defaults to `false`. |
 
 The file must be a non-empty array. Duplicate names and duplicate member codes are both
 rejected. `staff.json` is gitignored because it carries staff personal information;

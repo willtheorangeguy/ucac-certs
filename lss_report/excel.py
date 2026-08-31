@@ -122,7 +122,7 @@ def build_workbook(grid: Grid, output_path: Path) -> None:
     for row in grid.rows:
         if row.away and not seen_away:
             seen_away = True
-            marker = sheet.cell(row=row_index, column=1, value="Away Spring / Summer")
+            marker = sheet.cell(row=row_index, column=1, value="Away")
             marker.font = Font(bold=True)
             marker.fill = _fill(theme.HEADER)
             row_index += 1

@@ -62,7 +62,7 @@ def test_dashboard_renders_colours_the_away_split_and_the_error_row(client):
     response = client.get("/")
     assert response.status_code == 200
     assert "Robin Rivers" in response.text
-    assert "Away Spring / Summer" in response.text
+    assert ">Away</th>" in response.text  # the section header, not a stray match
     assert "Member ID was not found." in response.text
     assert "#FF6565" in response.text  # expired
     assert "#FFD13F" in response.text  # expiring

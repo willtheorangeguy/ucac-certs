@@ -78,7 +78,7 @@ def test_away_staff_get_a_section_marker(tmp_path: Path):
     )["Certifications"]
     header = _header_row(sheet)
     assert sheet.cell(row=header + 1, column=1).value == "Zoe Active"
-    assert sheet.cell(row=header + 2, column=1).value == "Away Spring / Summer"
+    assert sheet.cell(row=header + 2, column=1).value == "Away"
     assert sheet.cell(row=header + 3, column=1).value == "Aaron Away"
 
 

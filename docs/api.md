@@ -77,7 +77,7 @@ Once a scan has run, `latest` is the scan row itself — `id`, `started_at`, `fi
 | `member_code` | string | yes | Lifesaving Society member ID. Upper-cased; rejected unless alphanumeric. |
 | `email` | string | no | Reminder address. Without one, the member is silently skipped by every reminder. |
 | `phone` | string | no | Stored but unused — no channel reads it. |
-| `away` | boolean | no | Moves the member into the "Away Spring / Summer" section. |
+| `away` | boolean | no | Moves the member into the "Away" section. |
 
 The member ID is verified against the Society **before** the row is written, so the request
 takes a second or two. Three rejections are possible, and none of them write anything:
@@ -199,6 +199,10 @@ python scripts/extract_roster.py "Cert Form June 2024.pdf" staff.json
 
 Names are read from the left-hand column and the six-character member ID from the end of
 each row. Everyone below the `Away Spring / Summer` marker is flagged `away`.
+
+That marker is the literal heading in the hand-maintained form this script reads, so it
+stays as it is. The application itself labels the section `Away`, because which semester
+someone is away for changes.
 
 ## Python package
 

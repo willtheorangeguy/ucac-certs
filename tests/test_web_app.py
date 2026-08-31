@@ -44,7 +44,7 @@ def test_stranger_never_gets_a_token(client, database):
 def test_signed_in_manager_sees_the_dashboard(signed_in):
     response = signed_in.get("/")
     assert response.status_code == 200
-    assert "Certification overview" in response.text
+    assert "Certification Overview" in response.text
 
 
 def test_adding_staff_verifies_the_member_id_first(signed_in, database, monkeypatch):

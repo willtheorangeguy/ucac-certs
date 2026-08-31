@@ -149,7 +149,7 @@ the run if the Society asks you to.
 ## Roster
 
 `staff.json` is a JSON array of `name`, `memberCode`, and an optional `away` flag that
-moves the member into the "Away Spring / Summer" section. It is ignored by Git.
+moves the member into the "Away" section. It is ignored by Git.
 
 To rebuild it from a certification form PDF:
 
