@@ -144,9 +144,10 @@ things help:
 
 ## Continuous deployment
 
-Pushing to `main` deploys. `.github/workflows/deploy.yml` authenticates with a
-`FLY_API_TOKEN` repository secret, which should be a deploy token scoped to this
-application rather than a personal organisation token.
+Pushing to `main` deploys, provided the commit touches something outside the documentation
+and the tests pass. `.github/workflows/deploy.yml` runs the suite first and deploys only on
+success, authenticating with a `FLY_API_TOKEN` repository secret — a deploy token scoped to
+this application rather than a personal organisation token.
 
 ```bash
 fly tokens create deploy -x 8760h
@@ -154,11 +155,10 @@ fly tokens create deploy -x 8760h
 
 Add the output as the `FLY_API_TOKEN` secret in the repository settings.
 
-!!! warning
-    The deploy workflow and the test workflow are independent. Nothing gates a deployment
-    on the tests passing, and the deploy workflow has no path filter, so a commit that
-    touches only documentation still redeploys production. Both are recorded in the
-    project's internal defect log.
+A deployment replaces the machine, so a scan running at that moment loses its thread. The
+application closes out such a scan on the next startup, marking it `failed` with
+"Interrupted by a restart." rather than leaving it stuck in progress. Re-run it from the
+dashboard.
 
 ## Why the machine stays on
 

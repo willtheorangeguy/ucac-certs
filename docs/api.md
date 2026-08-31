@@ -159,12 +159,15 @@ maintenance and debugging; the web application owns the roster.
 
 | Flag | Type | Default | Description |
 |---|---|---|---|
-| `--staff-file` | path | none | Roster to read. Mutually exclusive with the `STAFF_JSON` environment variable. |
+| `--staff-file` | path | none | Roster to read. Required. |
 | `--env-file` | path | none | Load settings from a dotenv file. |
 | `--output` | path | none | Write the PDF here. |
 | `--excel` | path | none | Write the Excel workbook here. |
 
-At least one of `--output` and `--excel` is required, and both may be given together.
+`--staff-file` is required, and at least one of `--output` and `--excel`; both outputs may
+be given together. The roster is only ever read from a file — it cannot be passed as a JSON
+string, because argv and the environment are readable by other processes and land in shell
+history, and the roster is staff names and Society member IDs.
 
 ```bash
 lss-report --staff-file staff.json --output report.pdf --excel report.xlsx

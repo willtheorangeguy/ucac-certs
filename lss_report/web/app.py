@@ -50,6 +50,9 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         auth.purge_expired()
+        abandoned = scan_repo.abandon_running()
+        if abandoned:
+            logger.warning("Marked %d scan(s) failed that a restart interrupted", abandoned)
         if os.environ.get("DISABLE_SCHEDULER", "").strip().casefold() not in {"1", "true", "yes"}:
             scheduler.start()
         yield

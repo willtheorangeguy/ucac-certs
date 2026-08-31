@@ -3,6 +3,16 @@ name: Deploy
 on:
   push:
     branches: [main]
+    # Documentation and its workflows never change what runs on the machine, and a
+    # redeploy replaces the machine — which takes any scan in progress with it. Keep
+    # this list in step with the paths watched by docs.yml.
+    paths-ignore:
+      - 'docs/**'
+      - 'overrides/**'
+      - 'mkdocs.yml'
+      - '**.md'
+      - '.github/workflows/docs.yml'
+      - '.github/workflows/docs-lint.yml'
   workflow_dispatch:
 
 permissions:
@@ -13,7 +23,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # The same tests CI runs, repeated here so the deploy job can depend on them.
+  # ci.yml triggers on the same push, so relying on it alone would be a race: both
+  # workflows start at once and nothing stops a failing commit from shipping to the
+  # only instance, which holds real staff records.
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install application
+        run: python -m pip install '.[test]'
+
+      - name: Run tests
+        run: python -m pytest
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

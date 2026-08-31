@@ -63,3 +63,36 @@ def test_seed_imports_once_then_never_again(staff, tmp_path):
     assert staff.seed_from_file(path) == 1
     assert staff.seed_from_file(path) == 0
     assert staff.active()[0].away is True
+
+
+def test_a_scan_left_running_is_closed_out(database):
+    from lss_report.web.repository import ScanRepository
+
+    scans = ScanRepository(database)
+    scan_id = scans.start(triggered_by="manager@example.org")
+
+    assert scans.abandon_running() == 1
+
+    latest = scans.latest()
+    assert latest["status"] == "failed"
+    assert latest["finished_at"] is not None
+    assert "restart" in latest["detail"]
+    assert scans.latest_complete_id() is None
+    # Idempotent: a second pass finds nothing left to close.
+    assert scans.abandon_running() == 0
+
+
+def test_closing_out_running_scans_leaves_completed_ones_alone(database):
+    from lss_report.web.repository import ScanRepository
+
+    scans = ScanRepository(database)
+    finished = scans.start(triggered_by="manager@example.org")
+    with database.write() as connection:
+        connection.execute(
+            "UPDATE scan SET status = 'complete', finished_at = '2026-01-01T00:00:00'"
+            " WHERE id = ?",
+            (finished,),
+        )
+
+    assert scans.abandon_running() == 0
+    assert scans.latest_complete_id() == finished

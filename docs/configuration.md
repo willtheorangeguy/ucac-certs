@@ -38,8 +38,8 @@ Names are used verbatim — there is no prefix scheme.
 
 ### Validation
 
-`SESSION_SECRET` and `MANAGER_EMAILS` are validated at startup and a bad value stops the
-process with a one-line message and exit code 2:
+Every setting is validated at startup, and a bad value stops the process with a one-line
+message and exit code 2 rather than starting in a state that cannot work:
 
 ```text
 Configuration error: SESSION_SECRET must be at least 32 characters.
@@ -49,15 +49,14 @@ Configuration error: SESSION_SECRET must be at least 32 characters.
 Configuration error: MANAGER_EMAILS contains an entry that is not an address.
 ```
 
-The two hour settings are not validated the same way, and both failure modes are worth
-knowing:
+```text
+Configuration error: SCAN_HOUR must be between 0 and 23, not 99.
+```
 
-- A non-numeric value raises an uncaught `ValueError` and the process exits with a
-  traceback rather than the clean message above.
-- A numeric value outside 0–23 is accepted silently. `SCAN_HOUR=99` never matches a real
-  hour, so the weekly scan simply never runs and nothing reports the problem.
-
-Both are recorded in the project's internal defect log.
+The hour settings are strict on purpose. The scheduler fires when the current hour equals
+the configured one, so a value outside 0–23 would never match and the job would silently
+never run — the worst outcome for a tool whose whole purpose is noticing expiries. An empty
+value falls back to the default; anything non-numeric is refused.
 
 ## Settings that are not configurable
 
@@ -149,6 +148,7 @@ rejected. `staff.json` is gitignored because it carries staff personal informati
 | Signed in, then immediately signed out | The address was removed from `MANAGER_EMAILS`. Membership is re-checked on every request, not just at sign-in. |
 | Everyone was signed out at once | `SESSION_SECRET` changed. Existing cookies no longer verify. |
 | Reminders never send | `RESEND_API_KEY` is unset, or the staff have no email address on their roster entry. Both are silent by design. |
-| The weekly scan never runs | `SCAN_HOUR` is outside 0–23, or `DISABLE_SCHEDULER` is set. |
+| The weekly scan never runs | `DISABLE_SCHEDULER` is set. An out-of-range `SCAN_HOUR` cannot cause this — it is refused at startup. |
+| A scan shows as `failed` with "Interrupted by a restart." | The process was replaced while the scan was running, usually by a deploy. Run it again. |
 
 {{ support() }}

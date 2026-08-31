@@ -100,3 +100,17 @@ def test_export_without_a_scan_is_a_clean_404(signed_in):
 
 def test_healthz_needs_no_session(client):
     assert client.get("/healthz").json() == {"ok": True}
+
+
+def test_startup_closes_out_a_scan_that_a_restart_interrupted(settings, database):
+    from lss_report.web.repository import ScanRepository
+
+    scans = ScanRepository(database)
+    scans.start(triggered_by="manager@example.org")
+
+    # Standing the app up is what reconciles the row, so the dashboard cannot report a
+    # scan permanently in progress after a deploy took its thread with it.
+    with TestClient(create_app(settings, database), follow_redirects=False):
+        pass
+
+    assert scans.latest()["status"] == "failed"

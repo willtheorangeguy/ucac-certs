@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from .config import ConfigurationError, load_env_file, load_staff_file, load_staff_json
+from .config import ConfigurationError, load_env_file, load_staff_file
 from .excel import build_workbook
 from .grid import build_grid
 from .models import ReportData
@@ -24,9 +23,10 @@ def _parser() -> argparse.ArgumentParser:
             "the web application is the primary entrypoint and owns the roster."
         )
     )
-    source = parser.add_mutually_exclusive_group()
-    source.add_argument("--staff-file", type=Path, help="Path to the staff JSON file.")
-    source.add_argument("--staff-json", help=argparse.SUPPRESS)
+    # The roster is only ever read from a file. It was once also accepted as a JSON
+    # string in argv or STAFF_JSON, which put staff names and Society member IDs into
+    # the process table and the shell history of whoever ran it.
+    parser.add_argument("--staff-file", type=Path, help="Path to the staff JSON file.")
     parser.add_argument("--env-file", type=Path, help="Load settings from an ignored .env file.")
     parser.add_argument("--output", type=Path, help="Write the PDF locally.")
     parser.add_argument("--excel", type=Path, help="Write the Excel workbook locally.")
@@ -38,13 +38,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.env_file:
             load_env_file(args.env_file)
-        raw_secret = args.staff_json or os.environ.get("STAFF_JSON")
-        if args.staff_file:
-            staff = load_staff_file(args.staff_file)
-        elif raw_secret:
-            staff = load_staff_json(raw_secret)
-        else:
-            raise ConfigurationError("Provide --staff-file or the STAFF_JSON environment variable.")
+        if not args.staff_file:
+            raise ConfigurationError("Provide --staff-file.")
+        staff = load_staff_file(args.staff_file)
         if args.output is None and args.excel is None:
             raise ConfigurationError("Choose --output and/or --excel.")
     except ConfigurationError as exc:

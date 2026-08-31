@@ -148,6 +148,23 @@ class ScanRepository:
             )
             return cursor.lastrowid
 
+    def abandon_running(self, detail: str = "Interrupted by a restart.") -> int:
+        """Close out scans left `running` by a process that died mid-scan.
+
+        A scan lives on a daemon thread, so a deploy or a restart takes it with it and
+        the row keeps `status = 'running'` forever. Nothing else reconciles that, and the
+        dashboard reads the latest scan for its status line, so it would report a scan
+        permanently in progress. No scan can survive a process boundary, so every such
+        row at startup is by definition abandoned and needs no timeout heuristic.
+        """
+        with self.db.write() as connection:
+            cursor = connection.execute(
+                "UPDATE scan SET finished_at = ?, status = 'failed', detail = ?"
+                " WHERE status = 'running'",
+                (_now(), detail),
+            )
+            return cursor.rowcount
+
     def fail(self, scan_id: int, detail: str) -> None:
         with self.db.write() as connection:
             connection.execute(

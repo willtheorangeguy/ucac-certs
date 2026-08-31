@@ -15,6 +15,25 @@ def _split(raw: str) -> list[str]:
     return [item.strip().casefold() for item in raw.replace(",", "\n").split("\n") if item.strip()]
 
 
+def _hour(env: dict[str, str], key: str, default: str) -> int:
+    """Read an hour-of-day setting, rejecting anything the scheduler could never match.
+
+    Both failure modes here used to be silent in their own way. A non-numeric value
+    raised a bare ``ValueError``, which is the *parent* of ``ConfigurationError`` and so
+    escaped the handler that reports settings problems cleanly. An out-of-range value was
+    accepted outright, and since the scheduler fires on ``now.hour == value`` the job then
+    never ran at all — the worst outcome for a tool whose purpose is noticing expiries.
+    """
+    raw = env.get(key, default).strip() or default
+    try:
+        hour = int(raw)
+    except ValueError as exc:
+        raise ConfigurationError(f"{key} must be a whole number between 0 and 23.") from exc
+    if not 0 <= hour <= 23:
+        raise ConfigurationError(f"{key} must be between 0 and 23, not {hour}.")
+    return hour
+
+
 @dataclass(frozen=True)
 class Settings:
     database_path: Path
@@ -66,7 +85,7 @@ def load_settings(environ: dict[str, str] | None = None) -> Settings:
         managers=managers,
         resend_api_key=env.get("RESEND_API_KEY") or None,
         mail_from=env.get("MAIL_FROM", "certifications@example.org"),
-        scan_hour=int(env.get("SCAN_HOUR", "6")),
-        reminder_hour=int(env.get("REMINDER_HOUR", "7")),
+        scan_hour=_hour(env, "SCAN_HOUR", "6"),
+        reminder_hour=_hour(env, "REMINDER_HOUR", "7"),
         warnings=tuple(warnings),
     )

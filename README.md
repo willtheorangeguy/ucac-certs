@@ -174,5 +174,11 @@ The workbook's second sheet lists anything needing a human:
 
 ## CI
 
-GitHub Actions runs the tests on push and deploys on `main`. No scraping, roster data, or
-credentials belong in the repository — the deployed server performs all certification work.
+GitHub Actions runs the tests on push, and deploys on `main` once they pass — the deploy
+workflow runs the suite itself and gates on it, and skips documentation-only commits. No
+scraping, roster data, or credentials belong in the repository; the deployed server
+performs all certification work.
+
+## License
+
+MIT — see [`LICENSE.md`](LICENSE.md).

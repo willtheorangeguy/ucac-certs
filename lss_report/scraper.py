@@ -84,17 +84,18 @@ def parse_member_page(html: str, staff: StaffMember) -> MemberRecord:
         site_current = "card--expired" not in card.get("class", [])
         columns = columns_for(award_name)
 
-        # Current cards carry a certification date; some expired cards carry only
-        # the expiry, in which case work backwards so every column derives alike.
+        # Current cards carry a certification date; some expired cards carry only the
+        # expiry, in which case work backwards so every column derives alike.
         date_text = _value_for_label(card, "Certification Date")
         expired_text = _value_for_label(card, "Expired On")
+        expired_on: datetime.date | None = None
         if date_text is not None:
             certification_date = _parse_date(date_text)
         elif expired_text is not None:
             expired_on = _parse_date(expired_text)
-            certification_date = (
-                certification_date_from_expiry(columns[0][0], expired_on) if columns else expired_on
-            )
+            # Only a placeholder, for the untracked-award branch below and for display.
+            # Each tracked column recovers its own date from its own validity period.
+            certification_date = expired_on
         else:
             raise ParseError("A certification card is missing its dates.")
         if not columns:
@@ -109,12 +110,24 @@ def parse_member_page(html: str, staff: StaffMember) -> MemberRecord:
             )
             continue
         for column, provisional in columns:
+            if expired_on is None:
+                column_date = certification_date
+                column_expiry = expiry_for(column, column_date)
+            else:
+                # The card published the expiry, so take it as given for this column
+                # rather than round-tripping it. One award can feed two columns with
+                # different validity periods — a combined first aid and CPR-C award
+                # runs 2 years and 1 year — and deriving a single certification date
+                # from the first column would put the other column's expiry out by the
+                # difference between them.
+                column_expiry = expired_on
+                column_date = certification_date_from_expiry(column, expired_on)
             record.certifications.append(
                 Certification(
                     name=award_name,
-                    certification_date=certification_date,
+                    certification_date=column_date,
                     column=column,
-                    expiry_date=expiry_for(column, certification_date),
+                    expiry_date=column_expiry,
                     site_current=site_current,
                     provisional=provisional,
                 )

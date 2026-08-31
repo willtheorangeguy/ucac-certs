@@ -41,19 +41,18 @@ nav:
       - CI/CD: ci-cd.md
       - FAQ: faq.md
 
-  # Changelog and License have no nav entry because this repository has no
-  # CHANGELOG.md or LICENSE.md at its root. `check_paths: true` turns a missing
-  # include into a build failure, so the pages were deleted rather than stubbed.
+  # License is included as a page because LICENSE.md is per-repo. There is no
+  # Changelog entry: this repository has no CHANGELOG.md, and `check_paths: true`
+  # turns a missing include into a build failure rather than an empty page.
   #
   # Contributing, Code of Conduct, and Security are org-level files living in
   # willtheorangeguy/.github, so they are linked rather than included.
   - About:
+      - License: license.md
       - Contributing: https://github.com/willtheorangeguy/.github/blob/main/CONTRIBUTING.md
       - Code of Conduct: https://github.com/willtheorangeguy/.github/blob/main/CODE_OF_CONDUCT.md
       - Security: https://github.com/willtheorangeguy/.github/blob/main/SECURITY.md
 
-# The writing standard ships with the docs but is not a site page, and
-# internal/ holds the defect log, which is deliberately not published.
+# The writing standard ships with the docs but is not a site page.
 exclude_docs: |
   docs.instructions.md
-  internal/

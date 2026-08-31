@@ -104,3 +104,46 @@ def test_rate_limit_is_retried():
     record = client.fetch(StaffMember("Example Staff Member", "ABC123"))
     assert record.error is None
     assert waits == [1.0]
+
+
+EXPIRED_ONLY_CARD = """<html><body>
+  <div class="member-info__details">
+    <div class="member-name"><span class="value">Example Staff Member</span></div>
+    <div class="member-id"><span class="value">ABC123</span></div>
+  </div>
+  <div class="member-info__cards">
+    <div class="member-info__card card--expired js-card-not-current" data-target="card-1">
+      <h2 class="card--title">Lifesaving First Aid &amp; CPR-C</h2>
+      <div class="card--details">
+        <div><span class="title">Expired On</span><span class="value">Mar 01, 2025</span></div>
+      </div>
+    </div>
+  </div>
+</body></html>"""
+
+
+def test_a_published_expiry_is_taken_as_given_for_every_column_it_feeds():
+    # One award, two columns, different validity periods: first aid runs two years and
+    # CPR-C one. Deriving a single certification date from whichever column came first
+    # put the other column's expiry out by the difference between them.
+    record = parse_member_page(EXPIRED_ONLY_CARD, StaffMember("Example Staff Member", "ABC123"))
+
+    first_aid = _by_column(record, FIRST_AID)[0]
+    cpr = _by_column(record, CPR_C)[0]
+    assert first_aid.expiry_date.isoformat() == "2025-03-01"
+    assert cpr.expiry_date.isoformat() == "2025-03-01"
+
+
+def test_each_column_recovers_its_own_certification_date_from_a_published_expiry():
+    record = parse_member_page(EXPIRED_ONLY_CARD, StaffMember("Example Staff Member", "ABC123"))
+
+    assert _by_column(record, FIRST_AID)[0].certification_date.isoformat() == "2023-03-01"
+    assert _by_column(record, CPR_C)[0].certification_date.isoformat() == "2024-03-01"
+
+
+def test_a_card_with_neither_date_is_a_parse_error():
+    html = EXPIRED_ONLY_CARD.replace(
+        '<span class="title">Expired On</span><span class="value">Mar 01, 2025</span>', ""
+    )
+    with pytest.raises(ParseError):
+        parse_member_page(html, StaffMember("Example Staff Member", "ABC123"))

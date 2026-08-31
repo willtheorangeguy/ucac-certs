@@ -6,7 +6,7 @@ documentation site.
 ```mermaid
 graph LR
   P[Push to any branch] -->|runs pytest| CI[CI]
-  M[Push to main] -->|flyctl deploy| DP[Deploy]
+  M[Push to main<br>outside docs] -->|tests, then flyctl deploy| DP[Deploy]
   D[Push to main<br>touching docs] -->|mkdocs build| DOC[Docs]
   R[Pull request<br>touching docs] -->|lint and strict build| DL[Docs Lint]
   DP -->|new machine version| F[Fly.io]
@@ -37,25 +37,28 @@ has nothing to leak.
 
 ### Deploy
 
-`.github/workflows/deploy.yml` runs on a push to `main` and on demand. It checks out the
-repository, installs `flyctl`, and runs `flyctl deploy --remote-only`, so the image is
-built on Fly's builders rather than on the runner.
+`.github/workflows/deploy.yml` runs on a push to `main` and on demand. It has two jobs:
+`test`, then `deploy`, which `needs: test`. The deploy job installs `flyctl` and runs
+`flyctl deploy --remote-only`, so the image is built on Fly's builders rather than on the
+runner.
+
+The `test` job repeats what CI runs. That duplication is deliberate: `ci.yml` triggers on
+the same push, so depending on it would be a race — both workflows start at once and
+nothing would stop a failing commit reaching the only instance, which holds real staff
+records. A job the deploy explicitly `needs` is the only ordering GitHub Actions
+guarantees.
 
 Authentication is a `FLY_API_TOKEN` repository secret, which should be a deploy token
 scoped to this application rather than a personal organisation token. A `concurrency` group
 named `deploy` with `cancel-in-progress: false` prevents two deployments overlapping.
 
-!!! warning
-    Two things about this workflow are worth knowing before you push.
+The workflow ignores documentation paths — `docs/**`, `overrides/**`, `mkdocs.yml`,
+`**.md`, and the two documentation workflows. A prose edit changes nothing that runs on the
+machine, and a redeploy replaces the machine, which takes any scan in progress with it.
 
-    It does not depend on CI. A commit whose tests fail still deploys, because the two
-    workflows are independent jobs triggered by the same event.
-
-    It has no `paths` filter. A commit that changes only documentation still rebuilds the
-    image and redeploys the machine.
-
-    Both are recorded in the project's internal defect log rather than fixed, because the
-    fix is a policy choice about how much friction a deployment should have.
+!!! tip
+    Keep that `paths-ignore` list in step with the paths `docs.yml` watches. If a path
+    appears in neither, a change to it deploys nothing and publishes nothing.
 
 ## Documentation workflows
 
