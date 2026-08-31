@@ -6,7 +6,7 @@ from lss_report.web.auth import SESSION_COOKIE, Auth
 from lss_report.web.repository import StaffRepository
 from lss_report.web.scans import Verification
 
-PROTECTED = ["/", "/staff", "/diagnostics", "/notifications", "/export.xlsx", "/export.pdf"]
+PROTECTED = ["/", "/staff", "/diagnostics", "/export.xlsx", "/export.pdf"]
 
 
 @pytest.fixture
@@ -29,11 +29,11 @@ def test_every_page_requires_a_session(client, path):
     assert response.headers["location"] == "/login"
 
 
-def test_login_response_is_identical_for_managers_and_strangers(client):
+def test_login_distinguishes_managers_from_strangers(client):
     manager = client.post("/login", data={"email": "manager@example.org"})
     stranger = client.post("/login", data={"email": "stranger@example.org"})
-    assert manager.status_code == stranger.status_code == 303
-    assert manager.headers["location"] == stranger.headers["location"]
+    assert manager.headers["location"] == "/login?sent=1"
+    assert stranger.headers["location"] == "/login?denied=1"
 
 
 def test_stranger_never_gets_a_token(client, database):

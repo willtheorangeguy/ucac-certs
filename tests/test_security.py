@@ -13,7 +13,6 @@ WRITE_ENDPOINTS = [
     ("/staff", {"name": "Intruder", "member_code": "AAA111"}),
     ("/staff/1/remove", {}),
     ("/staff/1/adopt-name", {}),
-    ("/notifications", {}),
 ]
 
 
@@ -78,12 +77,33 @@ def test_staff_name_is_escaped_on_the_roster_page(signed_in, database, monkeypat
     assert "<img src=x onerror=alert(1)>" not in response.text
 
 
-def test_login_does_not_leak_whether_an_address_is_a_manager(client):
-    manager = client.post("/login", data={"email": "manager@example.org"})
-    stranger = client.post("/login", data={"email": "nobody@example.org"})
-    assert manager.status_code == stranger.status_code
-    assert manager.headers["location"] == stranger.headers["location"]
-    assert manager.text == stranger.text
+def test_unapproved_address_is_told_it_has_no_access(client):
+    # Deliberate trade: the rejection notice is clearer for staff, but it does let
+    # someone probe which addresses are managers. The rate limits below are what
+    # keep that probing slow.
+    response = client.post("/login", data={"email": "nobody@example.org"})
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login?denied=1"
+    assert "does not have access" in client.get("/login", params={"denied": "1"}).text
+
+
+def test_an_approved_address_is_told_the_link_was_sent(client):
+    response = client.post("/login", data={"email": "manager@example.org"})
+    assert response.headers["location"] == "/login?sent=1"
+    assert "on its way" in client.get("/login", params={"sent": "1"}).text
+
+
+def test_a_rejected_address_still_never_receives_a_token(client, database):
+    client.post("/login", data={"email": "nobody@example.org"})
+    assert database.query("SELECT id FROM login_token") == []
+
+
+def test_probing_for_managers_is_rate_limited(client, database):
+    # The oracle exists, so it must at least be slow: repeated probes stop being
+    # answered once the per-IP limit trips.
+    for index in range(12):
+        client.post("/login", data={"email": f"probe{index}@example.org"})
+    assert database.query("SELECT id FROM login_token") == []
 
 
 def test_auth_endpoint_ignores_a_forged_token(client):

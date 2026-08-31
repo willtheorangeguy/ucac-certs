@@ -80,10 +80,12 @@ def test_diagnostics_page_renders_stored_notes(client):
     assert "Member ID was not found." in response.text
 
 
-def test_notifications_page_previews_without_sending(client, populated):
-    response = client.get("/notifications")
-    assert response.status_code == 200
-    assert populated.query("SELECT id FROM notification_log") == []
+def test_reminders_page_is_gone(client):
+    assert client.get("/notifications").status_code == 404
+
+
+def test_nav_does_not_offer_a_reminders_tab(client):
+    assert "Reminders" not in client.get("/").text
 
 
 def test_excel_export_downloads(client):

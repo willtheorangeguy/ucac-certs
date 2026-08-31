@@ -4,7 +4,7 @@ import logging
 import os
 import tempfile
 from contextlib import asynccontextmanager
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request
@@ -12,7 +12,6 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from ..awards import COLUMNS
-from ..config import ConfigurationError
 from ..excel import build_workbook
 from ..grid import Grid
 from ..models import CellStatus
@@ -84,8 +83,8 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     # --- authentication ------------------------------------------------
     @app.get("/login", response_class=HTMLResponse)
-    def login_form(request: Request, sent: bool = False):
-        return render(request, "login.html", sent=sent)
+    def login_form(request: Request, sent: bool = False, denied: bool = False):
+        return render(request, "login.html", sent=sent, denied=denied)
 
     @app.post("/login")
     def login_submit(request: Request, email: str = Form(...)):
@@ -103,7 +102,13 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
                 )
             except Exception:  # noqa: BLE001 - never reveal delivery state to the caller
                 logger.exception("Login link delivery failed")
-        # Identical response either way: this endpoint must not reveal who is a manager.
+        # Telling the caller their address is not approved is a deliberate trade of
+        # security for clarity: it lets someone probe which addresses are managers.
+        # The per-address and per-IP rate limits are what keep that probing slow.
+        # Revert to a single response for both cases to close the oracle.
+        if not settings.is_manager(email):
+            logger.info("Rejected sign-in attempt for an address that is not a manager")
+            return RedirectResponse("/login?denied=1", status_code=303)
         return RedirectResponse("/login?sent=1", status_code=303)
 
     @app.get("/auth")
@@ -263,28 +268,6 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             user=user,
             notes=scan_repo.notes(scan_id) if scan_id else [],
         )
-
-    @app.get("/notifications", response_class=HTMLResponse)
-    def notifications(request: Request, user: str = Depends(current_user), sent: int = 0):
-        scan_id = scan_repo.latest_complete_id()
-        due = (
-            scan_repo.due(scan_id, settings.reminder_days, date.today()) if scan_id else []
-        )
-        return render(
-            request,
-            "notifications.html",
-            user=user,
-            preview=reminders.send_due(due, dry_run=True),
-            sms_on=settings.sms_configured,
-            sent=sent,
-        )
-
-    @app.post("/notifications")
-    def send_notifications(user: str = Depends(current_user)):
-        scan_id = scan_repo.latest_complete_id()
-        due = scan_repo.due(scan_id, settings.reminder_days, date.today()) if scan_id else []
-        sent = reminders.send_due(due)
-        return RedirectResponse(f"/notifications?sent={len(sent)}", status_code=303)
 
     @app.get("/healthz")
     def healthz():

@@ -2,10 +2,22 @@
 {% block title %}Sign in{% endblock %}
 {% block content %}
 <h1>Aquatic Centre certifications</h1>
-{% if sent %}
+{% if denied %}
 <div class="panel">
-  <p>If that address belongs to a manager, a sign-in link is on its way.</p>
-  <p class="muted">The link works once and expires in 15 minutes.</p>
+  <p><strong>That address does not have access.</strong></p>
+  <p class="muted">
+    Only approved management staff can sign in. If you should have access, ask an
+    existing manager to add your work address to the allowlist.
+  </p>
+  <p><a href="/login">Try a different address</a></p>
+</div>
+{% elif sent %}
+<div class="panel">
+  <p>A sign-in link is on its way to that address.</p>
+  <p class="muted">
+    The link works once and expires in 15 minutes. If it does not arrive, check your
+    junk folder.
+  </p>
 </div>
 {% else %}
 <div class="panel">
