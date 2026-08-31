@@ -1,0 +1,11 @@
+[
+  {
+    "name": "Example Staff Member",
+    "memberCode": "ABC123"
+  },
+  {
+    "name": "Away Staff Member",
+    "memberCode": "DEF456",
+    "away": true
+  }
+]

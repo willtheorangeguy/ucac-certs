@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lss-certification-report"
+version = "0.1.0"
+description = "Generate and email an internal Lifesaving Society certification report."
+requires-python = ">=3.11"
+dependencies = [
+  "beautifulsoup4>=4.12,<5",
+  "openpyxl>=3.1,<4",
+  "reportlab>=4.2,<5",
+  "requests>=2.32,<3",
+  "tzdata>=2025.2",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.3,<9"]
+
+[project.scripts]
+lss-report = "lss_report.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["lss_report*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
