@@ -1,5 +1,7 @@
-app = "lss-certifications"
-primary_region = "sea"
+app = "ucac-certs"
+# Toronto keeps Canadian staff PII on Canadian infrastructure, which matters under
+# PIPEDA for a Canadian institution. Seattle is closer to Calgary but US-hosted.
+primary_region = "yyz"
 
 [build]
   dockerfile = "Dockerfile"

@@ -25,6 +25,11 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="One-time roster import from a staff.json. Ignored once the database has staff.",
     )
+    parser.add_argument(
+        "--seed-only",
+        action="store_true",
+        help="Import the roster and exit without starting the server.",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -43,6 +48,9 @@ def main(argv: list[str] | None = None) -> int:
             logging.info("Seeded %d staff from %s; the database is the roster now.", imported, args.seed)
         else:
             logging.info("Roster already populated; ignored %s.", args.seed)
+
+    if args.seed_only:
+        return 0
 
     uvicorn.run(create_app(settings, database), host=args.host, port=args.port, access_log=False)
     return 0
