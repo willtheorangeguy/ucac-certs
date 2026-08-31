@@ -8,8 +8,6 @@
 
 <div class="panel">
   <h2 style="font-size:1rem;margin-top:0">Add a staff member</h2>
-  <p class="muted">The Member ID is checked against the Lifesaving Society before saving, so a
-    typo is caught now rather than showing up as an empty row after the next scan.</p>
   <form method="post" action="/staff">
     <div class="fields">
       <div><label for="name">Name</label><input id="name" type="text" name="name" required></div>
@@ -17,7 +15,7 @@
       <div><label for="email">Email</label><input id="email" type="email" name="email"></div>
       <div><label for="phone">Phone</label><input id="phone" type="tel" name="phone"></div>
       <div>
-        <label><input type="checkbox" name="away" value="true"> Away spring / summer</label>
+        <label><input type="checkbox" name="away" value="true"> Away </label>
       </div>
       <div><button type="submit">Add and verify</button></div>
     </div>
@@ -55,6 +53,6 @@
       {% endfor %}
     </tbody>
   </table>
-  <p class="muted">Removing a staff member keeps their past scan results so old reports stay reproducible.</p>
+  <p class="muted">Removing a staff member keeps their past scan results.</p>
 </div>
 {% endblock %}

@@ -9,7 +9,7 @@
     Staff are emailed automatically at
     {% for t in thresholds %}{{ t }}{% if not loop.last %}, {% endif %}{% endfor %}
     days before a certification expires, once each, at
-    {{ '%02d'|format(reminder_hour) }}:00 Mountain time. Nothing here is sent by hand.
+    {{ '%02d'|format(reminder_hour) }}:00 Mountain time.
     Staff with no email address on file are skipped.
   </p>
 </div>

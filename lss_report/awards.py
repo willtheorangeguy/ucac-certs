@@ -16,7 +16,7 @@ NATIONAL_LIFEGUARD = CertColumn("NL", "National Lifeguard", 2)
 SWIM_INSTRUCTOR = CertColumn("SI", "Swim Instructor", 2)
 LIFESAVING_INSTRUCTOR = CertColumn("LSI", "Lifesaving Instructor", 2)
 # The certificate itself runs three years; the Aquatic Centre only honours two.
-FIRST_AID = CertColumn("FA", "First Aid", 2)
+FIRST_AID = CertColumn("FA", "Standard First Aid", 2)
 CPR_C = CertColumn("CPR-C", "CPR Level C", 1)
 OXYGEN = CertColumn("O2", "O2 Administration", 2)
 

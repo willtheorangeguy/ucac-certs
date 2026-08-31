@@ -94,7 +94,7 @@ def _grid_table(grid: Grid, font: str, bold_font: str, styles) -> Table:
         if row.away and not seen_away:
             seen_away = True
             index = len(rows)
-            rows.append(["Away Spring / Summer", *([""] * (len(header) - 1))])
+            rows.append(["Away", *([""] * (len(header) - 1))])
             commands.extend(
                 [
                     ("SPAN", (0, index), (-1, index)),
@@ -161,7 +161,7 @@ def build_pdf(grid: Grid, output_path: Path) -> None:
     )
 
     story: list = [
-        Paragraph("Ucalgary Aquatic Center Staff Certifications", styles["Title"]),
+        Paragraph("UCalgary Aquatic Center Staff Certifications", styles["Title"]),
         Paragraph(
             f"Generated {grid.as_of.isoformat()} &nbsp;|&nbsp; "
             f"Valid from certification date: {validity}",

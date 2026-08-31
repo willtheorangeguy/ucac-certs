@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% set page = 'dashboard' %}
-{% block title %}Certification overview{% endblock %}
+{% block title %}Certification Overview{% endblock %}
 {% block content %}
-<h1>Certification overview</h1>
+<h1>Certification Overview</h1>
 
 <div class="panel">
   <form method="post" action="/scan" style="display:inline">
@@ -47,7 +47,7 @@
       {% for row in rows %}
         {% if row.staff.away and not ns.away %}
           {% set ns.away = true %}
-          <tr><th colspan="{{ columns|length + 2 }}">Away Spring / Summer</th></tr>
+          <tr><th colspan="{{ columns|length + 2 }}">Away</th></tr>
         {% endif %}
         <tr>
           <td>{{ row.staff.display_name }}</td>

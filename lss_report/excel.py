@@ -23,7 +23,7 @@ def _fill(hex_color: str) -> PatternFill:
 
 
 def _write_preamble(sheet: Worksheet, grid: Grid) -> int:
-    sheet["A1"] = "Ucalgary Aquatic Center Staff Certifications"
+    sheet["A1"] = "UCalgary Aquatic Center Staff Certifications"
     sheet["A1"].font = Font(bold=True, size=14)
     sheet["A2"] = f"Generated {grid.as_of.isoformat()}"
 
