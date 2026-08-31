@@ -19,7 +19,7 @@ derive the same way.
 | NL | National Lifeguard | 2 years |
 | SI | Swim Instructor | 2 years |
 | LSI | Lifesaving Instructor | 2 years |
-| FA | First Aid | 2 years |
+| FA | Standard First Aid | 2 years |
 | CPR-C | CPR Level C | 1 year |
 | O2 | O2 Administration | 2 years |
 

@@ -13,7 +13,7 @@ project is built.
 ## Key features
 
 - One row per staff member, one column per award type — National Lifeguard, Swim
-  Instructor, Lifesaving Instructor, First Aid, CPR-C, and O2 Administration.
+  Instructor, Lifesaving Instructor, Standard First Aid, CPR-C, and O2 Administration.
 - Expiry computed from the certification date plus a per-column validity period, so the
   grid is accurate even though the source publishes no expiry.
 - Red for expired, yellow for expiring within 30 days, grey for nothing on record.
