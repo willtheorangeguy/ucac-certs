@@ -5,7 +5,7 @@ from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
-from reportlab.lib.pagesizes import landscape, letter
+from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import inch
 from reportlab.pdfbase import pdfmetrics
@@ -22,9 +22,6 @@ from reportlab.platypus import (
 from . import theme
 from .awards import COLUMNS
 from .grid import EXPIRY_WARNING_DAYS, Grid
-from .models import CellStatus
-
-ATTENTION = (CellStatus.EXPIRED, CellStatus.EXPIRING, CellStatus.MISSING)
 
 
 def _register_fonts() -> tuple[str, str]:
@@ -47,15 +44,24 @@ def _styles(font: str, bold_font: str) -> dict[str, ParagraphStyle]:
             "Title",
             parent=base["Title"],
             fontName=bold_font,
-            fontSize=18,
+            fontSize=13,
             textColor=colors.HexColor("#123B5D"),
             alignment=TA_LEFT,
+            spaceAfter=2,
         ),
-        "Body": ParagraphStyle("Body", parent=base["BodyText"], fontName=font, fontSize=9, leading=12),
+        "Body": ParagraphStyle("Body", parent=base["BodyText"], fontName=font, fontSize=7, leading=9, spaceAfter=1),
         "Heading": ParagraphStyle(
             "Heading", parent=base["Heading2"], fontName=bold_font, fontSize=11, leading=14
         ),
-        "Cell": ParagraphStyle("Cell", parent=base["BodyText"], fontName=font, fontSize=8, leading=10),
+        "Cell": ParagraphStyle(
+            "Cell",
+            parent=base["BodyText"],
+            fontName=font,
+            fontSize=6.5,
+            leading=7.5,
+            spaceBefore=0,
+            spaceAfter=0,
+        ),
         "Note": ParagraphStyle(
             "Note",
             parent=base["BodyText"],
@@ -72,13 +78,15 @@ def _grid_table(grid: Grid, font: str, bold_font: str, styles) -> Table:
     commands = [
         ("FONTNAME", (0, 0), (-1, -1), font),
         ("FONTNAME", (0, 0), (-1, 0), bold_font),
-        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("FONTSIZE", (0, 0), (-1, -1), 6.5),
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(f"#{theme.HEADER}")),
         ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#AEAAAA")),
         ("ALIGN", (1, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 1),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
     ]
 
     seen_away = False
@@ -132,53 +140,11 @@ def _grid_table(grid: Grid, font: str, bold_font: str, styles) -> Table:
 
     table = Table(
         rows,
-        colWidths=[1.9 * inch, *([0.95 * inch] * len(COLUMNS)), 0.85 * inch],
+        colWidths=[1.65 * inch, *([0.83 * inch] * len(COLUMNS)), 0.72 * inch],
         repeatRows=1,
     )
     table.setStyle(TableStyle(commands))
     return table
-
-
-def _attention_block(grid: Grid, font: str, bold_font: str, styles) -> list:
-    rows = [["Staff", "Cert", "Expiry", "Status", "Award on record"]]
-    for row in grid.rows:
-        for cell in row.cells:
-            if cell.status not in ATTENTION:
-                continue
-            rows.append(
-                [
-                    Paragraph(escape(row.name), styles["Cell"]),
-                    cell.column.code,
-                    cell.expiry_date.isoformat() if cell.expiry_date else "—",
-                    cell.status.value,
-                    Paragraph(escape(cell.source_award or "none on record"), styles["Cell"]),
-                ]
-            )
-    if len(rows) == 1:
-        return []
-
-    table = Table(
-        rows,
-        colWidths=[2.0 * inch, 0.7 * inch, 1.0 * inch, 0.9 * inch, 4.0 * inch],
-        repeatRows=1,
-    )
-    table.setStyle(
-        TableStyle(
-            [
-                ("FONTNAME", (0, 0), (-1, -1), font),
-                ("FONTNAME", (0, 0), (-1, 0), bold_font),
-                ("FONTSIZE", (0, 0), (-1, -1), 8),
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(f"#{theme.HEADER}")),
-                ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#AEAAAA")),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ]
-        )
-    )
-    return [
-        Paragraph("Attention required", styles["Heading"]),
-        Spacer(1, 0.05 * inch),
-        table,
-    ]
 
 
 def build_pdf(grid: Grid, output_path: Path) -> None:
@@ -196,14 +162,15 @@ def build_pdf(grid: Grid, output_path: Path) -> None:
 
     story: list = [
         Paragraph("Ucalgary Aquatic Center Staff Certifications", styles["Title"]),
-        Paragraph(f"Generated {grid.as_of.isoformat()}", styles["Body"]),
-        Paragraph(f"Validity from certification date: {validity}", styles["Body"]),
+        Paragraph(
+            f"Generated {grid.as_of.isoformat()} &nbsp;|&nbsp; "
+            f"Valid from certification date: {validity}",
+            styles["Body"],
+        ),
         Paragraph(legend, styles["Body"]),
-        Spacer(1, 0.14 * inch),
+        Spacer(1, 0.08 * inch),
         _grid_table(grid, font, bold_font, styles),
-        Spacer(1, 0.25 * inch),
     ]
-    story.extend(_attention_block(grid, font, bold_font, styles))
 
     notes = [
         *(f"Unmapped award: {title}" for title in grid.unmapped_awards),
@@ -223,11 +190,11 @@ def build_pdf(grid: Grid, output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     document = SimpleDocTemplate(
         str(output_path),
-        pagesize=landscape(letter),
+        pagesize=letter,
         leftMargin=0.55 * inch,
         rightMargin=0.55 * inch,
-        topMargin=0.5 * inch,
-        bottomMargin=0.5 * inch,
+        topMargin=0.35 * inch,
+        bottomMargin=0.35 * inch,
         title="Lifesaving Society Certification Report",
         author="Automated Certification Report",
     )

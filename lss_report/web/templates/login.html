@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<h1>Aquatic Centre certifications</h1>
+{% if sent %}
+<div class="panel">
+  <p>If that address belongs to a manager, a sign-in link is on its way.</p>
+  <p class="muted">The link works once and expires in 15 minutes.</p>
+</div>
+{% else %}
+<div class="panel">
+  <form method="post" action="/login">
+    <label for="email">Work email</label>
+    <input id="email" type="email" name="email" required autocomplete="email">
+    <p><button type="submit">Email me a sign-in link</button></p>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

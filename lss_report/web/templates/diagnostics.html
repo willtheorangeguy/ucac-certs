@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% set page = 'diagnostics' %}
+{% block title %}Diagnostics{% endblock %}
+{% block content %}
+<h1>Diagnostics</h1>
+<div class="panel">
+{% if notes %}
+  <table>
+    <thead><tr><th>Kind</th><th>Detail</th></tr></thead>
+    <tbody>
+      {% for note in notes %}
+      <tr><td>{{ note.kind }}</td><td>{{ note.detail }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted">
+    <strong>error</strong> — the Member ID was not found; check it against the Society.
+    <strong>name</strong> — the roster spelling differs from the Society's.
+    <strong>unmapped</strong> — an award title matching no rule; add it to <code>_RULES</code>
+    in <code>lss_report/awards.py</code> if it should count.
+    <strong>disagreement</strong> — our computed expiry contradicts the Society's own flag.
+  </p>
+{% else %}
+  <p>Nothing to report from the last scan.</p>
+{% endif %}
+</div>
+{% endblock %}

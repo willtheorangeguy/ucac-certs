@@ -41,6 +41,87 @@ the provisional Society award or show grey.
 | Grey `#808080` | No award on record |
 | Pink `#FFC7CE` | Member lookup failed — the row carries no data |
 
+## The web application
+
+The web app is the main entrypoint. Managers sign in, manage the roster, run scans, download
+the Excel and PDF, and send reminders. **The database is the roster of record** — `staff.json`
+is only a one-time seed.
+
+```powershell
+Copy-Item .env.example .env      # fill in SESSION_SECRET and MANAGER_EMAILS
+.venv\Scripts\python.exe -m lss_report.web.server --env-file .env --seed staff.json
+```
+
+Then open http://127.0.0.1:8000. Without `RESEND_API_KEY` the sign-in link is written to the
+log instead of emailed, which is how you sign in locally.
+
+### Sign-in
+
+Magic link only, no passwords. `MANAGER_EMAILS` is the entire security boundary: only listed
+addresses can obtain a link. The endpoint responds identically either way, so it cannot be
+used to discover who is a manager. Tokens are stored hashed, single-use, and expire in 15
+minutes; requests are rate-limited per address and per IP.
+
+### Roster
+
+Adding a staff member verifies the LS# against the Society before saving, so a typo is caught
+at entry rather than appearing as an empty row after the next scan. Where the Society spells a
+name differently, the roster screen offers to adopt its spelling. Removal is a soft delete —
+past scan results stay so old reports remain reproducible, and the member code becomes free
+again for re-adding.
+
+### Schedule
+
+A plain daemon thread runs the scan weekly (Monday, `SCAN_HOUR`) and a reminder pass daily
+(`REMINDER_HOUR`), both in `America/Edmonton`. Both are idempotent: a repeat scan on the same
+day is skipped, and reminders are deduped in `notification_log`, so a restart cannot
+double-fire. Set `DISABLE_SCHEDULER=1` to turn it off.
+
+### Reminders
+
+Email through Resend is live (3,000/month free, 100/day; one recipient per call because Resend
+counts each recipient separately). Staff are reminded at 30, 14 and 7 days before expiry, once
+per channel.
+
+SMS is written and tested but **off**. Turning it on later is configuration, not code: create
+the Twilio account, buy a Canadian number, complete A2P registration (allow lead time), set
+`TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM`, and set `SMS_ENABLED=1`. A number
+is never texted without a recorded consent date, flag or no flag.
+
+## Deployment
+
+One always-on Fly machine (`shared-cpu-1x`, 256 MB, ~$2/month) with a volume for SQLite.
+It stays always-on deliberately: the in-process scheduler needs a live process, and a Fly
+volume attaches to only one machine, so scale-to-zero and a separate scheduler machine are
+both ruled out.
+
+```bash
+fly launch --no-deploy               # uses the checked-in fly.toml
+fly volumes create lss_data --size 1
+fly secrets set SESSION_SECRET=... MANAGER_EMAILS=... RESEND_API_KEY=... \
+                MAIL_FROM=... BASE_URL=https://<app>.fly.dev
+fly deploy
+fly volumes snapshots list <volume>  # confirm backups before the first real scan
+```
+
+`BASE_URL` must match the deployed origin or sign-in links point at the wrong host. Seed the
+roster once via `fly ssh console -C "lss-web --seed /data/staff.json"`, or just add staff
+through the UI.
+
+GitHub Actions runs tests on every push and deploys to Fly on `main` using a `FLY_API_TOKEN`
+deploy token scoped to the app.
+
+## Privacy
+
+Staff PII under PIPEDA: names, Society member IDs, emails, phone numbers. Access is limited to
+the manager allowlist, SMS consent is recorded explicitly per person, every roster change is
+written to an audit trail, and the SQLite volume should be backed up and snapshotted.
+
+## Command line
+
+The CLI remains for maintenance and debugging. It reads `staff.json` directly, not the
+database.
+
 ## Local setup and test run
 
 Python 3.11 or newer is required.
@@ -95,5 +176,5 @@ and is not being developed further.
 
 ## CI
 
-GitHub Actions runs the tests only. No scraping, roster data, or credentials belong in the
-repository — the deployed server performs all certification work.
+GitHub Actions runs the tests on push and deploys on `main`. No scraping, roster data, or
+credentials belong in the repository — the deployed server performs all certification work.

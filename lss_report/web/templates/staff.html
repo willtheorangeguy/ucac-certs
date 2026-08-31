@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% set page = 'staff' %}
+{% block title %}Staff roster{% endblock %}
+{% block content %}
+<h1>Staff roster</h1>
+
+{% if error %}<div class="flash">{{ error }}</div>{% endif %}
+
+<div class="panel">
+  <h2 style="font-size:1rem;margin-top:0">Add a staff member</h2>
+  <p class="muted">The Member ID is checked against the Lifesaving Society before saving, so a
+    typo is caught now rather than showing up as an empty row after the next scan.</p>
+  <form method="post" action="/staff">
+    <div class="fields">
+      <div><label for="name">Name</label><input id="name" type="text" name="name" required></div>
+      <div><label for="member_code">LS# / Member ID</label><input id="member_code" type="text" name="member_code" required></div>
+      <div><label for="email">Email</label><input id="email" type="email" name="email"></div>
+      <div><label for="phone">Phone</label><input id="phone" type="tel" name="phone"></div>
+      <div>
+        <label><input type="checkbox" name="away" value="true"> Away spring / summer</label><br>
+        <label><input type="checkbox" name="sms_consent" value="true"> Consented to SMS</label>
+      </div>
+      <div><button type="submit">Add and verify</button></div>
+    </div>
+  </form>
+</div>
+
+<div class="panel scroll">
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Society name</th><th>LS#</th><th>Email</th><th>Phone</th><th>SMS</th><th>Away</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for member in staff %}
+      <tr>
+        <td>{{ member.name }}</td>
+        <td>
+          {% if member.society_name and member.society_name != member.name %}
+            <span class="muted">{{ member.society_name }}</span>
+            <form method="post" action="/staff/{{ member.id }}/adopt-name" style="display:inline">
+              <button type="submit" class="danger">Use this</button>
+            </form>
+          {% elif member.society_name %}✓{% endif %}
+        </td>
+        <td>{{ member.member_code }}</td>
+        <td>{{ member.email or '' }}</td>
+        <td>{{ member.phone or '' }}</td>
+        <td>{{ 'yes' if member.sms_consent_at else '—' }}</td>
+        <td>{{ 'yes' if member.away else '' }}</td>
+        <td>
+          <form method="post" action="/staff/{{ member.id }}/remove"
+                onsubmit="return confirm('Remove {{ member.name }} from the roster?')">
+            <button type="submit" class="danger">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p class="muted">Removing a staff member keeps their past scan results so old reports stay reproducible.</p>
+</div>
+{% endblock %}

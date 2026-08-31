@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% set page = 'dashboard' %}
+{% block title %}Certification overview{% endblock %}
+{% block content %}
+<h1>Certification overview</h1>
+
+<div class="panel">
+  <form method="post" action="/scan" style="display:inline">
+    <button type="submit" {% if running %}disabled{% endif %}>
+      {% if running %}Scan running…{% endif %}{% if not running %}Run scan now{% endif %}
+    </button>
+  </form>
+  <a class="button" href="/export.xlsx">Download Excel</a>
+  <a class="button" href="/export.pdf">Download PDF</a>
+  <p class="muted">
+    {% if latest %}
+      Last scan {{ latest.started_at[:16] }} UTC — {{ latest.status }}
+      {% if latest.detail %} — {{ latest.detail }}{% endif %}
+      (triggered by {{ latest.triggered_by }})
+    {% else %}
+      No scan has run yet.
+    {% endif %}
+  </p>
+  <p class="muted">
+    <span class="swatch" style="background:#{{ theme.EXPIRED }}">Expired</span>
+    <span class="swatch" style="background:#{{ theme.EXPIRING }}">Expires within 30 days</span>
+    <span class="swatch" style="background:#{{ theme.MISSING }};color:#fff">No award on record</span>
+    &nbsp; Valid from certification date:
+    {% for column in columns %}{{ column.code }} {{ column.validity_years }}yr{% if not loop.last %} · {% endif %}{% endfor %}
+  </p>
+</div>
+
+{% if not has_scan %}
+<div class="panel"><p>Run a scan to populate the grid.</p></div>
+{% else %}
+<div class="panel scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        {% for column in columns %}<th>{{ column.code }}</th>{% endfor %}
+        <th>LS#</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% set ns = namespace(away=false) %}
+      {% for row in rows %}
+        {% if row.staff.away and not ns.away %}
+          {% set ns.away = true %}
+          <tr><th colspan="{{ columns|length + 2 }}">Away Spring / Summer</th></tr>
+        {% endif %}
+        <tr>
+          <td>{{ row.staff.display_name }}</td>
+          {% if row.error %}
+            <td class="cert" colspan="{{ columns|length }}" style="background:#{{ theme.ERROR }};color:#000">{{ row.error }}</td>
+          {% else %}
+            {% for column in columns %}
+              {% set cell = row.cells.get(column.code) %}
+              {% set status = cell.status if cell else 'missing' %}
+              <td class="cert"
+                  {% if status == 'expired' %}style="background:#{{ theme.EXPIRED }};color:#000"
+                  {% elif status == 'expiring' %}style="background:#{{ theme.EXPIRING }};color:#000"
+                  {% elif status == 'missing' %}style="background:#{{ theme.MISSING }};color:#fff"{% endif %}
+                  {% if cell and cell.source_award %}title="{{ cell.source_award }}"{% endif %}>
+                {{ cell.expiry_date if cell and cell.expiry_date else '' }}
+              </td>
+            {% endfor %}
+          {% endif %}
+          <td class="cert">{{ row.staff.member_code }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}
