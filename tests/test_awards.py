@@ -44,6 +44,26 @@ def test_combined_first_aid_and_cpr_award_certifies_both_outright():
     )
 
 
+def test_red_cross_titles_certify_first_aid_and_cpr_outright():
+    # The Red Cross writes CPR Level C as "CPR/AED Level C", the Society as "CPR C".
+    assert columns_for("Standard First Aid CPR/AED Level C (Blended)") == (
+        (FIRST_AID, False),
+        (CPR_C, False),
+    )
+    assert columns_for("Emergency First Aid CPR/AED Level C") == (
+        (FIRST_AID, False),
+        (CPR_C, False),
+    )
+
+
+def test_a_red_cross_cpr_only_award_still_counts_for_first_aid_provisionally():
+    assert columns_for("CPR/AED Level C") == ((CPR_C, False), (FIRST_AID, True))
+
+
+def test_a_lower_cpr_level_is_not_read_as_level_c():
+    assert columns_for("Standard First Aid CPR/AED Level A") == ((FIRST_AID, False),)
+
+
 @pytest.mark.parametrize(
     "title",
     [

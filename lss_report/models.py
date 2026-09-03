@@ -12,6 +12,9 @@ class StaffMember:
     name: str
     member_code: str
     away: bool = False
+    # Red Cross certificates are validated by number rather than by member, so the
+    # number is held per staff member alongside the Society Member ID.
+    red_cross_number: str | None = None
 
 
 class CellStatus(str, Enum):
@@ -42,6 +45,9 @@ class MemberRecord:
     error: str | None = None
     name_warning: str | None = None
     away: bool = False
+    # A Red Cross lookup that failed. It is a warning rather than an error: the
+    # Society awards still stand, only the Red Cross first aid record is missing.
+    red_cross_warning: str | None = None
 
     @property
     def display_name(self) -> str:

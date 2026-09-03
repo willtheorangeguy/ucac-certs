@@ -13,14 +13,21 @@ other by construction.
 ```mermaid
 graph LR
   S[Lifesaving Society<br>member directory] -->|one HTTPS GET per member| C[SocietyClient]
+  X2[Red Cross<br>certificate validator] -->|one HTTPS GET per certificate| C2[RedCrossClient]
   C -->|award titles and dates| A[awards.columns_for<br>awards.expiry_for]
+  C2 -->|award title and expiry| A
   A -->|Certification records| G[grid.build_grid]
   G -->|MemberRow per staff| D[(SQLite)]
-  D -->|stored cells| W[Web dashboard]
-  D -->|stored cells| X[Excel and PDF export]
+  M[Manual dates<br>entered by hand] --> D
+  D -->|effective cells| W[Web dashboard]
+  D -->|effective cells| X[Excel and PDF export]
   D -->|due thresholds| R[Reminder pass]
   R -->|one message per recipient| E[Resend]
 ```
+
+Three sources feed one grid: the Society, the Red Cross, and dates entered by hand. They
+are ranked against each other by the rule the grid already used within a single source —
+a purpose-issued award beats a provisional credit, and otherwise the later expiry wins.
 
 ## Components
 
@@ -64,6 +71,29 @@ Cards come in two shapes. A current card carries a `Certification Date`. Some ex
 carry only an `Expired On` value, which is worked backwards through the column's validity
 period so every column derives its expiry the same way.
 
+### The Red Cross validator
+
+`lss_report/redcross.py` is the second collector. The Red Cross validates one certificate
+at a time — number plus the holder's last name — and renders the answer into a single
+paragraph, so `parse_validation` reads that paragraph and nothing else. Three outcomes:
+
+| Result | Meaning |
+|---|---|
+| A `RedCrossCertificate` | The pair validated. Carries the award title and the expiry. |
+| `None` | `No Certificate found` — the number and last name do not go together. |
+| `ParseError` | The page said something the parser does not recognise. |
+
+The validator publishes an **expiry** where the Society publishes a **certification date**,
+so the two are reconciled before either reaches the grid. A Red Cross first aid card runs
+three years, which is exactly the period the Aquatic Centre declines to honour; taking the
+published expiry at face value would silently grant staff a third year. `ISSUER_VALIDITY_YEARS`
+works the expiry back to the course date, and each column then applies its own validity —
+two years for `FA`, one for `CPR-C` — the same arithmetic used for an `Expired On` card.
+
+A failed Red Cross lookup is a **warning**, not an error. The Society awards are unaffected;
+only the first aid cell falls back to whatever the Society has, and the reason lands in
+Diagnostics under the `redcross` kind. An outage at the Red Cross cannot fail a scan.
+
 ### Row building
 
 `grid.build_grid` turns records into rows. Per column it picks the best award: a confirmed
@@ -97,7 +127,7 @@ staff already read. The PDF is portrait letter, sized so the whole overview fits
 | `db.py` | One shared `sqlite3` connection guarded by an `RLock`. |
 | `repository.py` | All SQL. `StaffRepository` owns the roster; `ScanRepository` owns scans, results, notes, and the reminder schedule. |
 | `auth.py` | Magic-link issue and redeem, rate limiting, signed session cookies. |
-| `scans.py` | `verify_member_code` for roster entry, `run_scan`, and `ScanRunner` — the worker thread. |
+| `scans.py` | `verify_member_code` and `verify_red_cross_number` for roster entry, `run_scan`, and `ScanRunner` — the worker thread. |
 | `notify.py` | The `Channel` protocol, the Resend email channel, and reminder deduplication. |
 | `scheduler.py` | A daemon thread ticking once a minute, firing the weekly scan and the daily reminder pass. |
 | `app.py` | Route definitions and dependency wiring. |
@@ -114,6 +144,7 @@ sequenceDiagram
   participant A as FastAPI route
   participant T as Scan thread
   participant S as Society
+  participant X as Red Cross
   participant D as SQLite
   M->>A: POST /scan
   A->>T: start(triggered_by)
@@ -122,6 +153,10 @@ sequenceDiagram
   loop each roster member
     T->>S: GET member page
     S-->>T: awards and dates
+    opt member has a certificate number
+      T->>X: GET validate certificate
+      X-->>T: award title and expiry
+    end
   end
   T->>D: store rows and notes, status complete
   M->>A: GET / on reload
@@ -136,15 +171,19 @@ second tick.
 
 ### Database schema
 
-Eight tables, created with `CREATE TABLE IF NOT EXISTS` on every startup. There is no
-migration system.
+Nine tables, created with `CREATE TABLE IF NOT EXISTS` on every startup, plus a short list
+of columns added to existing tables afterwards. There is no migration system beyond that
+list: `db.migrate` compares `PRAGMA table_info` against `_ADDED_COLUMNS` and issues the
+missing `ALTER TABLE`s, because `CREATE TABLE IF NOT EXISTS` leaves a live database's older
+table untouched and a new column would otherwise never appear in production.
 
 | Table | Holds |
 |---|---|
-| `staff` | The roster of record. Soft-deleted via `removed_at`. |
+| `staff` | The roster of record, including the Red Cross certificate number. Soft-deleted via `removed_at`. |
+| `manual_cert` | Certification dates entered by hand, one per staff member per column. |
 | `scan` | One row per scan: start, finish, status, who triggered it. |
 | `scan_result` | One row per staff member per column: expiry, status, source award, provisional flag. |
-| `scan_note` | Diagnostics for a scan, keyed by kind: `error`, `name`, `unmapped`, `disagreement`. |
+| `scan_note` | Diagnostics for a scan, keyed by kind: `error`, `name`, `unmapped`, `disagreement`, `redcross`. |
 | `login_token` | Hashed single-use sign-in tokens with an expiry. |
 | `login_attempt` | Rate-limit ledger, keyed by address and by client IP. |
 | `notification_log` | Every reminder sent. Doubles as the deduplication key. |
@@ -168,6 +207,18 @@ CREATE UNIQUE INDEX notification_once
 One reminder per staff member, award, expiry, ladder step, and channel. Re-running a scan
 cannot replay reminders, and neither can a restart.
 
+```sql
+CREATE UNIQUE INDEX manual_cert_once ON manual_cert (staff_id, column_code);
+```
+
+One hand-entered date per staff member per column. Saving the edit panel replaces what is
+there rather than accumulating entries, which is what lets a blank field mean "clear it".
+
+Manual dates are folded in on **read**, by `repository.effective_cells`, not written into
+`scan_result`. The dashboard, the exports, and the reminder schedule all go through it, so
+a date entered at 9am moves that afternoon's reminder without waiting for a scan, and
+`scan_result` stays a faithful record of what the two verifiable sources actually said.
+
 ## Directory layout
 
 Only the paths that matter.
@@ -176,6 +227,7 @@ Only the paths that matter.
 lss_report/
 ├── awards.py          Award title to column mapping, validity, expiry arithmetic
 ├── scraper.py         Society HTTP client and page parser
+├── redcross.py        Red Cross validator client and result parser
 ├── models.py          StaffMember, Certification, MemberRecord, CellStatus
 ├── grid.py            Row building, best-award selection, status thresholds
 ├── excel.py           openpyxl workbook, plus a Diagnostics sheet
@@ -186,12 +238,12 @@ lss_report/
 └── web/
     ├── app.py         Routes
     ├── server.py      lss-web entry point
-    ├── schema.sql     The eight tables
+    ├── schema.sql     The nine tables
     └── templates/     Jinja pages
 scripts/
 ├── extract_roster.py  Rebuilds staff.json from a certification form PDF
 └── run-local.ps1      Venv, install, live scan, write report.pdf and report.xlsx
-tests/                 131 tests, no network access
+tests/                 195 tests, no network access
 ```
 
 ## Design decisions

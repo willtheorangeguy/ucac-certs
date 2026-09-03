@@ -8,6 +8,10 @@ CREATE TABLE IF NOT EXISTS staff (
     member_code   TEXT NOT NULL,
     email         TEXT,
     phone         TEXT,
+    -- Red Cross certificates are validated by number, not by member, so one number
+    -- is held per staff member. Added after the first release; db.migrate() adds
+    -- the column to databases created before it.
+    red_cross_number TEXT,
     away          INTEGER NOT NULL DEFAULT 0,
     sms_consent_at TEXT,
     removed_at    TEXT,
@@ -18,6 +22,21 @@ CREATE TABLE IF NOT EXISTS staff (
 -- member can be re-added later without colliding with their own soft-deleted row.
 CREATE UNIQUE INDEX IF NOT EXISTS staff_active_code
     ON staff (member_code) WHERE removed_at IS NULL;
+
+-- A certification earned outside the two verifiable sources — a third-party course,
+-- an employer-run recert — recorded by hand. It is an extra source rather than an
+-- override: the better of the manual entry and the scanned award wins, so entering
+-- an old date cannot hide a current award.
+CREATE TABLE IF NOT EXISTS manual_cert (
+    id                 INTEGER PRIMARY KEY,
+    staff_id           INTEGER NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+    column_code        TEXT NOT NULL,
+    certification_date TEXT NOT NULL,
+    created_at         TEXT NOT NULL
+);
+
+-- One manual date per staff member per column: saving the edit panel replaces it.
+CREATE UNIQUE INDEX IF NOT EXISTS manual_cert_once ON manual_cert (staff_id, column_code);
 
 CREATE TABLE IF NOT EXISTS scan (
     id           INTEGER PRIMARY KEY,

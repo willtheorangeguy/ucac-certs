@@ -1,8 +1,8 @@
 # Testing
 
-The suite is 131 tests across 14 files and takes about ten seconds. It makes no network
-calls — the Society is represented by a stored HTML fixture — so it is safe to run
-anywhere, including CI.
+The suite is 195 tests across 17 files and takes about ten seconds. It makes no network
+calls — the Society and the Red Cross are each represented by stored HTML fixtures — so it
+is safe to run anywhere, including CI.
 
 ## Running the tests
 
@@ -11,14 +11,14 @@ anywhere, including CI.
 ```
 
 ```text
-131 passed, 1 warning in 9.63s
+195 passed, 2 warnings in 9.32s
 ```
 
 Configuration lives in `pyproject.toml`: `testpaths` is `tests`, and `addopts` is `-q`, so
 plain `pytest` from the repository root does the right thing.
 
-The single warning is a `StarletteDeprecationWarning` about `httpx` in the test client. It
-comes from a dependency, not from this project.
+Both warnings are deprecation notices from dependencies — `httpx` in the Starlette test
+client, and an `anyio` alias — not from this project.
 
 ### Narrower runs
 
@@ -37,15 +37,17 @@ python -m pytest -k "expiry or reminder" -v
 | `test_awards.py` | Award title to column mapping, the ordering traps, leap-year date arithmetic |
 | `test_grid.py` | Best-award selection, the status boundaries, away grouping, cross-check exclusions |
 | `test_scraper.py` | Page parsing, both card shapes, name warnings, member ID mismatches, retries |
+| `test_redcross.py` | Validator result parsing, the three-year working-back, retries, digits-only numbers |
+| `test_scans.py` | The two sources merged into one grid, and a Red Cross failure staying a warning |
 | `test_excel.py` | Fill colours landing on the right cells, real date values, the Diagnostics sheet |
 | `test_pdf.py` | The grid renders, and fits one page |
 | `test_config.py` | Dotenv parsing, `staff.json` validation and its rejections |
 | `test_cli.py` | The `lss-report` entry point |
-| `test_repository.py` | Roster CRUD, soft delete, scan storage, the reminder schedule |
+| `test_repository.py` | Roster CRUD, soft delete, scan storage, manual dates, the schema migration, the reminder schedule |
 | `test_auth.py` | Token issue and redeem, single use, expiry, rate limiting |
 | `test_notify.py` | Resend delivery, reminder text, deduplication |
 | `test_scheduler.py` | Weekly and daily firing, and that neither can double-fire |
-| `test_web_app.py` | Routes, redirects, roster verification at entry |
+| `test_web_app.py` | Routes, redirects, roster verification at entry, the edit panel |
 | `test_web_render.py` | Every page rendered against stored scan data |
 | `test_security.py` | The properties that must hold before this is exposed to the internet |
 
@@ -65,13 +67,18 @@ rewritten once already, when the original hand-written fixture turned out to con
 expiry modal that does not exist in production and had hidden the fact that the scraper's
 expiry parsing was dead code.
 
+`tests/fixtures/redcross_valid.html` and `redcross_not_found.html` do the same for the Red
+Cross validator, and are trimmed copies of what it actually returns — including the
+non-breaking spaces that separate the fields in its result paragraph, which the parser has
+to normalise before it can read anything.
+
 !!! warning
-    Keep the fixture honest. A fixture that describes a page the Society does not serve
-    will pass tests for behaviour that cannot work.
+    Keep the fixtures honest. A fixture that describes a page the Society or the Red Cross
+    does not serve will pass tests for behaviour that cannot work.
 
 ## The security tests
 
-`test_security.py` is worth reading on its own. It asserts eleven properties rather than
+`test_security.py` is worth reading on its own. It asserts twelve properties rather than
 exercising features:
 
 - Every write endpoint rejects an anonymous caller and writes nothing.
@@ -79,6 +86,8 @@ exercising features:
 - The cookie is *not* marked `Secure` over plain HTTP, because a `Secure` cookie would
   never be sent back and would silently break local development.
 - Reflected error messages and staff names are HTML-escaped.
+- A staff name containing an apostrophe cannot break out of the removal confirmation's
+  JavaScript string.
 - An unapproved address is told it has no access, never receives a token, and probing is
   rate-limited.
 - A forged sign-in token sets no cookie.

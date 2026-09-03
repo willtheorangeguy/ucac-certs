@@ -40,6 +40,7 @@ class MemberRow:
     away: bool = False
     error: str | None = None
     name_warning: str | None = None
+    red_cross_warning: str | None = None
 
 
 @dataclass(frozen=True)
@@ -88,6 +89,7 @@ def _row(record: MemberRecord, as_of: date) -> MemberRow:
         away=record.away,
         error=record.error,
         name_warning=record.name_warning,
+        red_cross_warning=record.red_cross_warning,
     )
 
 

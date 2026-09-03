@@ -7,9 +7,10 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from ..grid import Grid, build_grid
-from ..models import ReportData
+from ..models import MemberRecord, ReportData
+from ..redcross import RedCrossClient, certifications_from, last_name_for
 from ..scraper import SocietyClient, UpstreamError
-from .repository import ScanRepository, StaffRepository
+from .repository import ScanRepository, Staff, StaffRepository
 
 logger = logging.getLogger(__name__)
 TIMEZONE = ZoneInfo("America/Edmonton")
@@ -36,12 +37,56 @@ def verify_member_code(member_code: str, name: str, *, client: SocietyClient | N
     return Verification(ok=True, society_name=record.source_name)
 
 
+def verify_red_cross_number(
+    certificate_number: str, name: str, *, client: RedCrossClient | None = None
+) -> Verification:
+    """Check a certificate number against the Red Cross validator at entry time.
+
+    The validator keys off the number and the holder's last name together, so a
+    number that belongs to someone else fails here rather than silently returning
+    nothing at the next scan.
+    """
+    validator = client or RedCrossClient()
+    try:
+        certificate = validator.fetch(last_name_for(name), certificate_number)
+    except UpstreamError as exc:
+        return Verification(ok=False, error=str(exc))
+    if certificate is None:
+        return Verification(
+            ok=False,
+            error="No Red Cross certificate matches that number and last name.",
+        )
+    return Verification(ok=True)
+
+
+def _add_red_cross(record: MemberRecord, member: Staff, client: RedCrossClient) -> None:
+    """Fold a member's Red Cross certificate into their Society record.
+
+    A failed lookup is a warning, not an error: the Society awards are unaffected and
+    the first aid cell simply falls back to whatever the Society has.
+    """
+    if not member.red_cross_number:
+        return
+    try:
+        certificate = client.fetch(last_name_for(member.display_name), member.red_cross_number)
+    except UpstreamError as exc:
+        record.red_cross_warning = str(exc)
+        return
+    if certificate is None:
+        record.red_cross_warning = (
+            f"Certificate {member.red_cross_number} did not validate against the Red Cross."
+        )
+        return
+    record.certifications.extend(certifications_from(certificate))
+
+
 def run_scan(
     staff_repo: StaffRepository,
     scan_repo: ScanRepository,
     *,
     triggered_by: str,
     client: SocietyClient | None = None,
+    red_cross: RedCrossClient | None = None,
 ) -> Grid | None:
     roster = staff_repo.active()
     scan_id = scan_repo.start(triggered_by=triggered_by)
@@ -50,8 +95,14 @@ def run_scan(
         return None
 
     society = client or SocietyClient()
+    validator = red_cross or RedCrossClient()
     try:
-        records = [society.fetch(member.as_member()) for member in roster]
+        records = []
+        for member in roster:
+            record = society.fetch(member.as_member())
+            if not record.error:
+                _add_red_cross(record, member, validator)
+            records.append(record)
     except UpstreamError as exc:
         scan_repo.fail(scan_id, str(exc))
         return None

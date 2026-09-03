@@ -72,12 +72,17 @@ other install paths are covered in [Installation](installation.md).
         line. If you started the server on a non-default port, `BASE_URL` must match or
         the link points at the wrong host.
 
-5. Add a staff member on the **Staff** page. Give a real name and a real Lifesaving
-    Society member ID.
+5. On the **Staff** page, select **Add a staff member**. Give a real name and a real
+    Lifesaving Society member ID.
 
-    The member ID is checked against the Society before the row is saved, so this step
-    takes a second or two. A bad ID is rejected with `Member ID was not found.` and
-    nothing is written.
+    If they hold first aid through the Canadian Red Cross, put the certificate number in
+    the same panel. Below the details is a date field per column, for a certification
+    earned through a third party — leave those blank for now.
+
+    Both numbers are checked before the row is saved, so this step takes a second or two.
+    A bad member ID is rejected with `Member ID was not found.`, a certificate number that
+    does not match the person's last name is rejected too, and nothing is written either
+    way. The pencil on the row reopens the same panel to change any of it later.
 
 6. Return to the dashboard and select **Run scan**.
 
@@ -87,10 +92,11 @@ other install paths are covered in [Installation](installation.md).
 
 ## What just happened
 
-The scan fetched each roster member's award history from the Society, mapped every award
-title onto one of the six tracked columns, and computed an expiry date as the
-certification date plus that column's validity period. The Society publishes no expiry
-dates of its own, so this computation is the whole point of the tool.
+The scan fetched each roster member's award history from the Society — and, for anyone
+with a certificate number on file, their Red Cross certificate — mapped every award title
+onto one of the six tracked columns, and computed an expiry date as the certification date
+plus that column's validity period. Neither source publishes an expiry this tool can use as
+printed, so this computation is the whole point of it.
 
 Results were written to the SQLite database as a numbered scan, which is what the
 dashboard, the Excel export, the PDF export, and the reminder schedule all read from.

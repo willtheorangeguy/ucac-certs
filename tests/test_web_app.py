@@ -114,3 +114,181 @@ def test_startup_closes_out_a_scan_that_a_restart_interrupted(settings, database
         pass
 
     assert scans.latest()["status"] == "failed"
+
+
+@pytest.fixture
+def member(signed_in, database, monkeypatch):
+    monkeypatch.setattr(
+        "lss_report.web.app.verify_member_code",
+        lambda code, name, **kwargs: Verification(ok=True, society_name="Robin Rivers"),
+    )
+    signed_in.post("/staff", data={"name": "Robin Rivers", "member_code": "RRV001"})
+    return StaffRepository(database).active()[0]
+
+
+def test_editing_a_member_saves_their_details(signed_in, database, member):
+    signed_in.post(
+        f"/staff/{member.id}/edit",
+        data={
+            "name": "Robin Rivers",
+            "member_code": "RRV001",
+            "email": "robin@example.org",
+            "phone": "403-555-0100",
+            "away": "true",
+        },
+    )
+    refreshed = StaffRepository(database).get(member.id)
+    assert refreshed.email == "robin@example.org"
+    assert refreshed.phone == "403-555-0100"
+    assert refreshed.away is True
+
+
+def test_an_unchanged_member_id_is_not_looked_up_again(signed_in, database, member, monkeypatch):
+    def explode(*args, **kwargs):
+        raise AssertionError("should not reach the Society")
+
+    monkeypatch.setattr("lss_report.web.app.verify_member_code", explode)
+    response = signed_in.post(
+        f"/staff/{member.id}/edit",
+        data={"name": "Robin Rivers", "member_code": "RRV001", "email": "robin@example.org"},
+    )
+    assert response.status_code == 303
+    assert StaffRepository(database).get(member.id).email == "robin@example.org"
+
+
+def test_a_red_cross_number_is_validated_before_it_is_saved(signed_in, database, member, monkeypatch):
+    calls = []
+
+    def fake_verify(number, name, **kwargs):
+        calls.append((number, name))
+        return Verification(ok=True)
+
+    monkeypatch.setattr("lss_report.web.app.verify_red_cross_number", fake_verify)
+    signed_in.post(
+        f"/staff/{member.id}/edit",
+        data={"name": "Robin Rivers", "member_code": "RRV001", "red_cross_number": "103575156"},
+    )
+    assert calls == [("103575156", "Robin Rivers")]
+    assert StaffRepository(database).get(member.id).red_cross_number == "103575156"
+
+
+def test_a_red_cross_number_that_does_not_validate_is_refused(signed_in, database, member, monkeypatch):
+    monkeypatch.setattr(
+        "lss_report.web.app.verify_red_cross_number",
+        lambda number, name, **kwargs: Verification(ok=False, error="No Red Cross certificate."),
+    )
+    response = signed_in.post(
+        f"/staff/{member.id}/edit",
+        data={"name": "Robin Rivers", "member_code": "RRV001", "red_cross_number": "999999999"},
+    )
+    assert "No+Red+Cross" in response.headers["location"].replace("%20", "+")
+    assert StaffRepository(database).get(member.id).red_cross_number is None
+
+
+def test_a_non_numeric_red_cross_number_is_rejected_without_a_lookup(signed_in, database, member, monkeypatch):
+    def explode(*args, **kwargs):
+        raise AssertionError("should not reach the Red Cross")
+
+    monkeypatch.setattr("lss_report.web.app.verify_red_cross_number", explode)
+    signed_in.post(
+        f"/staff/{member.id}/edit",
+        data={"name": "Robin Rivers", "member_code": "RRV001", "red_cross_number": "ABC-1"},
+    )
+    assert StaffRepository(database).get(member.id).red_cross_number is None
+
+
+def test_manual_dates_are_saved_and_cleared_from_the_edit_panel(signed_in, database, member):
+    repo = StaffRepository(database)
+    signed_in.post(
+        f"/staff/{member.id}/edit",
+        data={"name": "Robin Rivers", "member_code": "RRV001", "manual_FA": "2025-03-01"},
+    )
+    assert repo.manual_certs(member.id) == {"FA": "2025-03-01"}
+
+    # A column left blank clears the entry rather than leaving the old date behind.
+    signed_in.post(
+        f"/staff/{member.id}/edit",
+        data={"name": "Robin Rivers", "member_code": "RRV001", "manual_FA": ""},
+    )
+    assert repo.manual_certs(member.id) == {}
+
+
+def test_a_manual_date_that_is_not_a_date_is_refused(signed_in, database, member):
+    response = signed_in.post(
+        f"/staff/{member.id}/edit",
+        data={"name": "Robin Rivers", "member_code": "RRV001", "manual_FA": "not-a-date"},
+    )
+    assert response.status_code == 303
+    assert "must+be+a+real+date" in response.headers["location"].replace("%20", "+")
+    assert StaffRepository(database).manual_certs(member.id) == {}
+
+
+def test_adding_a_member_accepts_the_whole_panel(signed_in, database, monkeypatch):
+    monkeypatch.setattr(
+        "lss_report.web.app.verify_member_code",
+        lambda code, name, **kwargs: Verification(ok=True, society_name="Amrit K Tiu"),
+    )
+    monkeypatch.setattr(
+        "lss_report.web.app.verify_red_cross_number",
+        lambda number, name, **kwargs: Verification(ok=True),
+    )
+    repo = StaffRepository(database)
+    signed_in.post(
+        "/staff",
+        data={
+            "name": "Amrit Tiu",
+            "member_code": "RRV001",
+            "red_cross_number": "103575156",
+            "email": "amrit@example.org",
+            "away": "true",
+            "manual_O2": "2025-05-06",
+        },
+    )
+    member = repo.active()[0]
+    assert member.red_cross_number == "103575156"
+    assert member.away is True
+    assert repo.manual_certs(member.id) == {"O2": "2025-05-06"}
+
+
+def test_a_bad_red_cross_number_stops_the_add_before_anything_is_written(signed_in, database, monkeypatch):
+    monkeypatch.setattr(
+        "lss_report.web.app.verify_member_code",
+        lambda code, name, **kwargs: Verification(ok=True, society_name="Amrit Tiu"),
+    )
+    monkeypatch.setattr(
+        "lss_report.web.app.verify_red_cross_number",
+        lambda number, name, **kwargs: Verification(ok=False, error="No Red Cross certificate."),
+    )
+    response = signed_in.post(
+        "/staff",
+        data={"name": "Amrit Tiu", "member_code": "RRV001", "red_cross_number": "999999999"},
+    )
+    assert "No+Red+Cross" in response.headers["location"].replace("%20", "+")
+    assert StaffRepository(database).active() == []
+
+
+def test_a_bad_manual_date_stops_the_add_without_a_lookup(signed_in, database, monkeypatch):
+    def explode(*args, **kwargs):
+        raise AssertionError("should not reach the Society")
+
+    monkeypatch.setattr("lss_report.web.app.verify_member_code", explode)
+    signed_in.post(
+        "/staff",
+        data={"name": "Amrit Tiu", "member_code": "RRV001", "manual_FA": "not-a-date"},
+    )
+    assert StaffRepository(database).active() == []
+
+
+def test_a_bad_manual_date_leaves_an_edit_entirely_unsaved(signed_in, database, member):
+    repo = StaffRepository(database)
+    signed_in.post(
+        f"/staff/{member.id}/edit",
+        data={
+            "name": "Robin Rivers",
+            "member_code": "RRV001",
+            "email": "robin@example.org",
+            "manual_FA": "not-a-date",
+        },
+    )
+    # The email sits above the date fields in the panel; a bad date must not save it.
+    assert repo.get(member.id).email is None

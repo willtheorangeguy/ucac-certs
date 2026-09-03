@@ -21,7 +21,23 @@ def connect(database_path: Path) -> sqlite3.Connection:
 
 def initialise(connection: sqlite3.Connection) -> None:
     connection.executescript(SCHEMA.read_text(encoding="utf-8"))
+    migrate(connection)
     connection.commit()
+
+
+# Columns added to an existing table after the first release. `CREATE TABLE IF NOT
+# EXISTS` leaves a live database's older table untouched, so new columns have to be
+# added here as well as in schema.sql.
+_ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
+    ("staff", "red_cross_number", "TEXT"),
+)
+
+
+def migrate(connection: sqlite3.Connection) -> None:
+    for table, column, definition in _ADDED_COLUMNS:
+        existing = {row["name"] for row in connection.execute(f"PRAGMA table_info({table})")}
+        if column not in existing:
+            connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 class Database:

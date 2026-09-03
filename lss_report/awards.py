@@ -29,6 +29,13 @@ COLUMNS: tuple[CertColumn, ...] = (
     OXYGEN,
 )
 
+COLUMNS_BY_CODE: dict[str, CertColumn] = {column.code: column for column in COLUMNS}
+
+# CPR Level C is titled differently by each issuing body: the Society writes "CPR C"
+# or "CPR-C", the Red Cross writes "CPR/AED Level C". One fragment matches all of
+# them without matching "CPR B" or "CPR Level A".
+_CPR_C = r"\bcpr\s*[-/]?\s*(?:aed\s*[-/]?\s*)?(?:level\s*)?c\b"
+
 # Ordered; the first pattern that matches wins. Qualifications that merely mention a
 # tracked award are listed first and map to nothing, so that "Lifesaving CPR
 # Instructor/Examiner" is not read as a CPR-C award nor "2023 National Lifeguard
@@ -50,10 +57,10 @@ _RULES: tuple[tuple[str, tuple[tuple[CertColumn, bool], ...]], ...] = (
     (r"\bnl recert(ification)?\b", ((NATIONAL_LIFEGUARD, False),)),
     (r"\bo2 administration\b", ((OXYGEN, False),)),
     # A combined first aid and CPR award certifies both outright.
-    (r"\bfirst aid\b.*\bcpr\s*-?\s*c\b", ((FIRST_AID, False), (CPR_C, False))),
-    # A CPR-only award is accepted for first aid by Aquatic Centre policy, but a Red
-    # Cross first aid record should replace it once that source exists.
-    (r"\bcpr\s*-?\s*c\b", ((CPR_C, False), (FIRST_AID, True))),
+    (r"\bfirst aid\b.*" + _CPR_C, ((FIRST_AID, False), (CPR_C, False))),
+    # A CPR-only award is accepted for first aid by Aquatic Centre policy, but a
+    # purpose-issued first aid record — Society or Red Cross — outranks it.
+    (_CPR_C, ((CPR_C, False), (FIRST_AID, True))),
     (r"\bfirst aid\b", ((FIRST_AID, False),)),
 )
 

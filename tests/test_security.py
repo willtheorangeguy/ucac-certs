@@ -13,6 +13,7 @@ WRITE_ENDPOINTS = [
     ("/staff", {"name": "Intruder", "member_code": "AAA111"}),
     ("/staff/1/remove", {}),
     ("/staff/1/adopt-name", {}),
+    ("/staff/1/edit", {"name": "Intruder", "member_code": "AAA111"}),
 ]
 
 
@@ -115,3 +116,15 @@ def test_auth_endpoint_ignores_a_forged_token(client):
 
 def test_scan_status_needs_a_session(client):
     assert client.get("/scan/status").status_code == 303
+
+
+def test_a_name_with_an_apostrophe_cannot_break_out_of_the_confirm_dialog(signed_in, monkeypatch):
+    monkeypatch.setattr(
+        "lss_report.web.app.verify_member_code",
+        lambda code, name, **kwargs: Verification(ok=True, society_name="Robin O'Brien"),
+    )
+    signed_in.post("/staff", data={"name": "Robin O'Brien", "member_code": "AAA111"})
+    text = signed_in.get("/staff").text
+    # The apostrophe is escaped inside the JavaScript literal, and the literal's own
+    # double quotes sit inside a single-quoted HTML attribute.
+    assert 'confirm("Remove " + "Robin O\\u0027Brien"' in text

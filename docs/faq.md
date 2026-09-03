@@ -21,7 +21,12 @@ Questions about why the tool behaves the way it does. Error messages with a fix 
     honours two. The grid shows the date the Aquatic Centre stops accepting the
     certification, which is a year earlier than the one printed on the card.
 
-    It is one number in `lss_report/awards.py` if the policy changes.
+    This holds for a Red Cross card too, and it is the reason the Red Cross expiry is not
+    used as printed: the validator publishes an expiry three years out, that expiry is
+    worked back to the course date, and the two-year house policy is applied to it.
+
+    It is one number in `lss_report/awards.py` if the policy changes, and one in
+    `lss_report/redcross.py` if the Red Cross changes how long a card runs.
 
 ??? question "Why is a cell grey instead of red?"
 
@@ -29,9 +34,27 @@ Questions about why the tool behaves the way it does. Error messages with a fix 
     that has lapsed. A red cell is a certification the tool found and computed as expired;
     a grey cell is one it never found.
 
-    The common cause is first aid held through the Red Cross. The Red Cross has no public
-    verification page, so those records cannot be collected and the cell falls back to a
-    provisional credit from a CPR award, or shows grey.
+    For first aid, check the roster entry has a Red Cross certificate number on it. Without
+    one there is nothing to validate, and the cell falls back to a provisional credit from a
+    CPR award, or shows grey.
+
+??? question "Someone's first aid is through a course neither the Society nor the Red Cross knows about."
+
+    Open the pencil on their roster row and put the date the course was passed into that
+    column. The expiry is computed from it the same way a scanned award's is.
+
+    It is an extra source rather than an override, so it only shows where it beats what the
+    scan found. That is deliberate: a stale hand-entered date cannot hide a current award.
+    Clearing the field removes the entry.
+
+??? question "A Red Cross certificate number is on the roster but the cell is still grey."
+
+    Check **Diagnostics** for a `redcross` note. Either the number and the last name do not
+    go together — the validator matches on both — or the validator was unreachable when the
+    scan ran.
+
+    Neither case affects the rest of the row. The Society's awards are collected
+    independently, and a Red Cross outage cannot fail a scan.
 
 ??? question "What does a status disagreement on the Diagnostics page mean?"
 
@@ -48,12 +71,13 @@ Questions about why the tool behaves the way it does. Error messages with a fix 
 
 ??? question "Why does a scan take a minute?"
 
-    One request per staff member, spaced 1.1 seconds apart, on purpose. Forty-five people
-    is about fifty seconds of deliberate waiting.
+    One request per staff member, spaced 1.1 seconds apart, on purpose, plus a second one
+    for each member who holds a Red Cross certificate. Forty-five people is about fifty
+    seconds of deliberate waiting, more if most of them have both.
 
-    The tool reads a third party's website on behalf of staff who have supplied their
-    member IDs for verification. Going slowly is the courtesy that keeps that reasonable.
-    If the Society asks you to stop, stop.
+    The tool reads two third parties' websites on behalf of staff who have supplied their
+    member IDs and certificate numbers for verification. Going slowly is the courtesy that
+    keeps that reasonable. If either body asks you to stop, stop.
 
 ??? question "The page came straight back — did the scan actually run?"
 
@@ -105,6 +129,9 @@ Questions about why the tool behaves the way it does. Error messages with a fix 
     completed scan. A certification renewed since the last scan, or a person added since,
     won't appear until the next scan runs.
 
+    A date entered by hand is the exception: it is folded in on read, so it moves the
+    schedule the moment it is saved.
+
 ## The roster
 
 ??? question "I removed the wrong person. Can I undo it?"
@@ -122,6 +149,10 @@ Questions about why the tool behaves the way it does. Error messages with a fix 
     rejected immediately with `Member ID was not found.` rather than surfacing as a blank
     row after the next scan, which is how four bad IDs went unnoticed in an earlier
     version of this tool.
+
+    A Red Cross certificate number is checked the same way, against the holder's last
+    name. Adding a member runs both checks; editing one runs only the checks whose field
+    actually changed, so correcting a phone number is instant.
 
 ??? question "Why is there a phone field if nothing uses it?"
 

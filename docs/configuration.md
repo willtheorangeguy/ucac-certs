@@ -95,6 +95,12 @@ shorter than the Society's, those two columns are excluded from the cross-check 
 compares a computed expiry against the Society's own current/expired flag — otherwise
 every staff member would generate a false disagreement.
 
+The other half of that policy is `ISSUER_VALIDITY_YEARS` in `lss_report/redcross.py`. The
+Red Cross validator publishes an expiry and no course date, so that number is what recovers
+the course date before the table above is applied. It describes the Red Cross's own
+three-year term, not Aquatic Centre policy — change it only if the Red Cross changes how
+long a card runs.
+
 ## Example configuration
 
 A complete local development file:

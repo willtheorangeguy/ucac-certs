@@ -1,31 +1,76 @@
 {% extends "base.html" %}
 {% set page = 'staff' %}
 {% block title %}Staff roster{% endblock %}
+
+{# One panel for both adding and editing. `member` is None when adding, which is the
+   only difference between the two: same fields, same validation, same route shape. #}
+{% macro panel(key, member, dates) %}
+  <div class="fields">
+    <div>
+      <label for="name-{{ key }}">Name</label>
+      <input id="name-{{ key }}" type="text" name="name" value="{{ member.name if member else '' }}" required>
+    </div>
+    <div>
+      <label for="code-{{ key }}">LS# / Member ID</label>
+      <input id="code-{{ key }}" type="text" name="member_code"
+             value="{{ member.member_code if member else '' }}" required>
+    </div>
+    <div>
+      <label for="rc-{{ key }}">Red Cross certificate #</label>
+      <input id="rc-{{ key }}" type="text" name="red_cross_number" inputmode="numeric"
+             value="{{ member.red_cross_number or '' if member else '' }}">
+    </div>
+    <div>
+      <label for="email-{{ key }}">Email</label>
+      <input id="email-{{ key }}" type="email" name="email" value="{{ member.email or '' if member else '' }}">
+    </div>
+    <div>
+      <label for="phone-{{ key }}">Phone</label>
+      <input id="phone-{{ key }}" type="tel" name="phone" value="{{ member.phone or '' if member else '' }}">
+    </div>
+    <div>
+      <label><input type="checkbox" name="away" value="true" {% if member and member.away %}checked{% endif %}> Away </label>
+    </div>
+  </div>
+
+  <p class="muted" style="margin:1.25rem 0 .5rem">
+    Certification dates entered by hand, for courses taken through a third party. Enter the
+    date the course was passed; the expiry is worked out from it. A date left blank is
+    cleared, and an entry only takes effect where it beats what the last scan found.
+  </p>
+  <div class="fields">
+    {% for column in columns %}
+    <div>
+      <label for="manual-{{ key }}-{{ column.code }}">{{ column.code }} &mdash; {{ column.label }}</label>
+      <input id="manual-{{ key }}-{{ column.code }}" type="date"
+             name="manual_{{ column.code }}" value="{{ dates.get(column.code, '') }}">
+    </div>
+    {% endfor %}
+  </div>
+{% endmacro %}
+
 {% block content %}
 <h1>Staff roster</h1>
 
 {% if error %}<div class="flash">{{ error }}</div>{% endif %}
 
 <div class="panel">
-  <h2 style="font-size:1rem;margin-top:0">Add a staff member</h2>
-  <form method="post" action="/staff">
-    <div class="fields">
-      <div><label for="name">Name</label><input id="name" type="text" name="name" required></div>
-      <div><label for="member_code">LS# / Member ID</label><input id="member_code" type="text" name="member_code" required></div>
-      <div><label for="email">Email</label><input id="email" type="email" name="email"></div>
-      <div><label for="phone">Phone</label><input id="phone" type="tel" name="phone"></div>
-      <div>
-        <label><input type="checkbox" name="away" value="true"> Away </label>
-      </div>
-      <div><button type="submit">Add and verify</button></div>
-    </div>
-  </form>
+  <button type="button" onclick="document.getElementById('add-staff').showModal()">
+    <i class="fa-solid fa-user-plus" aria-hidden="true"></i> Add a staff member
+  </button>
+  <p class="muted">
+    The LS# is checked against the Society, and a Red Cross certificate number against the
+    Red Cross, before the row is saved.
+  </p>
 </div>
 
 <div class="panel scroll">
   <table>
     <thead>
-      <tr><th>Name</th><th>Society name</th><th>LS#</th><th>Email</th><th>Phone</th><th>Away</th><th></th></tr>
+      <tr>
+        <th>Name</th><th>Society name</th><th>LS#</th><th>Red Cross #</th>
+        <th>Email</th><th>Phone</th><th>Away</th><th></th>
+      </tr>
     </thead>
     <tbody>
       {% for member in staff %}
@@ -40,13 +85,25 @@
           {% elif member.society_name %}✓{% endif %}
         </td>
         <td>{{ member.member_code }}</td>
+        <td>{{ member.red_cross_number or '' }}</td>
         <td>{{ member.email or '' }}</td>
         <td>{{ member.phone or '' }}</td>
         <td>{{ 'yes' if member.away else '' }}</td>
-        <td>
+        <td class="actions">
+          <button type="button" class="icon-button" title="Edit {{ member.name }}"
+                  aria-label="Edit {{ member.name }}"
+                  onclick="document.getElementById('edit-{{ member.id }}').showModal()">
+            <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+          </button>
+          {# tojson, not interpolation: a name like O'Brien would otherwise close the
+             JavaScript string literal. It emits double quotes and escapes everything
+             else, so the attribute itself has to be single-quoted. #}
           <form method="post" action="/staff/{{ member.id }}/remove"
-                onsubmit="return confirm('Remove {{ member.name }} from the roster?')">
-            <button type="submit" class="danger">Remove</button>
+                onsubmit='return confirm("Remove " + {{ member.name|tojson }} + " from the roster?")'>
+            <button type="submit" class="icon-button danger" title="Remove {{ member.name }}"
+                    aria-label="Remove {{ member.name }}">
+              <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+            </button>
           </form>
         </td>
       </tr>
@@ -55,4 +112,30 @@
   </table>
   <p class="muted">Removing a staff member keeps their past scan results.</p>
 </div>
+
+<dialog id="add-staff">
+  <h2>Add a staff member</h2>
+  <form method="post" action="/staff">
+    {{ panel('add', none, {}) }}
+    <div class="dialog-actions">
+      <button type="button" class="danger"
+              onclick="document.getElementById('add-staff').close()">Cancel</button>
+      <button type="submit">Add and verify</button>
+    </div>
+  </form>
+</dialog>
+
+{% for member in staff %}
+<dialog id="edit-{{ member.id }}">
+  <h2>Edit {{ member.display_name }}</h2>
+  <form method="post" action="/staff/{{ member.id }}/edit">
+    {{ panel(member.id, member, manual[member.id]) }}
+    <div class="dialog-actions">
+      <button type="button" class="danger"
+              onclick="document.getElementById('edit-{{ member.id }}').close()">Cancel</button>
+      <button type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+{% endfor %}
 {% endblock %}

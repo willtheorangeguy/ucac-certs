@@ -12,7 +12,8 @@ staff member, one column per award type — as an Excel workbook and a PDF.
 and its certification date, so every expiry here is *computed* as certification date plus
 a validity period. Some expired cards carry an "Expired On" value instead of a
 certification date; those are worked backwards to a certification date so all columns
-derive the same way.
+derive the same way. The Red Cross publishes the opposite — an expiry and no certification
+date — and is worked backwards the same way; see [Red Cross first aid](#red-cross-first-aid).
 
 | Column | Award | Valid for |
 | --- | --- | --- |
@@ -31,8 +32,31 @@ current/expired flag — the other four are, and disagreements land in Diagnosti
 Where a member has several awards in one column (an original plus recerts), the latest
 expiry wins. An award issued for a different purpose that still counts — first aid
 credited from "Lifesaving CPR C & AED" — is marked provisional and loses to a
-purpose-issued award. Red Cross first aid is not yet collected; those cells fall back to
-the provisional Society award or show grey.
+purpose-issued award.
+
+### Red Cross first aid
+
+Staff who hold first aid through the Canadian Red Cross have a certificate number on their
+roster entry, entered on the Staff panel. Every scan validates it against the Red Cross's
+own [certificate validator](https://myrc.redcross.ca/en/ValidateCertificate/), which keys
+off the certificate number together with the holder's last name.
+
+The validator publishes only an expiry, three years out from the course. Those three years
+are precisely the ones the Aquatic Centre declines to honour, so the published expiry is
+never used as-is: it is worked back to the course date, and then `FA` expires two years
+after it and `CPR-C` one. A card whose number fails to validate is reported in Diagnostics
+and leaves the Society's provisional credit in place; a Red Cross outage cannot fail a scan.
+
+### Dates entered by hand
+
+A certification earned outside both sources — a third-party course, an employer-run recert —
+goes on the same panel, one date per column. Enter the date the course was passed; the
+expiry is computed from it exactly as a scanned award's would be.
+
+A manual date is an additional source rather than an override. It competes with what the
+scan found on the usual terms — a purpose-issued award beats a provisional credit, otherwise
+the later expiry wins — so an old date cannot hide a current award. It takes effect
+immediately, on the dashboard, the exports, and the reminder schedule alike.
 
 ## Cell colours
 
@@ -66,11 +90,18 @@ minutes; requests are rate-limited per address and per IP.
 
 ### Roster
 
-Adding a staff member verifies the LS# against the Society before saving, so a typo is caught
-at entry rather than appearing as an empty row after the next scan. Where the Society spells a
-name differently, the roster screen offers to adopt its spelling. Removal is a soft delete —
-past scan results stay so old reports remain reproducible, and the member code becomes free
-again for re-adding.
+One panel does both jobs. **Add a staff member** opens it empty; the pencil on a row opens it
+filled in. It holds everything about that person: name, LS#, contact details, the away flag,
+their Red Cross certificate number, and a manual date for each of the six columns.
+
+The LS# is verified against the Society and the certificate number against the Red Cross
+before anything is written, so a typo is caught at entry rather than appearing as an empty
+row after the next scan. On an edit each check runs only if its own field changed, so a save
+that touches neither reaches no network. Where the Society spells a name differently, the
+roster screen offers to adopt its spelling.
+
+The trash can removes a staff member. Removal is a soft delete — past scan results stay so
+old reports remain reproducible, and the member code becomes free again for re-adding.
 
 ### Schedule
 
@@ -117,9 +148,9 @@ deploy token scoped to the app.
 
 ## Privacy
 
-Staff PII under PIPEDA: names, Society member IDs, emails, phone numbers. Access is limited to
-the manager allowlist, every roster change is written to an audit trail, and the SQLite volume
-should be backed up and snapshotted.
+Staff PII under PIPEDA: names, Society member IDs, Red Cross certificate numbers, emails,
+phone numbers. Access is limited to the manager allowlist, every roster change is written
+to an audit trail, and the SQLite volume should be backed up and snapshotted.
 
 ## Command line
 
@@ -171,6 +202,8 @@ The workbook's second sheet lists anything needing a human:
   column, add it to `_RULES` in `lss_report/awards.py`.
 - **Status disagreement** — our computed expiry contradicts the Society's own flag.
 - **Provisional** — a first aid cell credited from a CPR award.
+- **Red Cross** — a certificate number that did not validate, or the validator was
+  unreachable. The Society's awards for that member are unaffected.
 
 ## CI
 

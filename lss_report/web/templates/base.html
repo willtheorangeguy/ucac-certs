@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Certifications{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+        integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg=="
+        crossorigin="anonymous" referrerpolicy="no-referrer">
   <style>
     :root {
       --bg: #f7f9fb; --panel: #ffffff; --ink: #16212c; --muted: #5b6470;
@@ -34,9 +37,20 @@
       padding:.5rem .9rem; font-size:.9rem; cursor:pointer; text-decoration:none; display:inline-block; }
     button.danger { background:transparent; color:var(--expired); border:1px solid var(--line); }
     input, label { font-size:.9rem; }
-    input[type=text], input[type=email], input[type=tel] {
+    input[type=text], input[type=email], input[type=tel], input[type=date] {
       padding:.45rem .55rem; border:1px solid var(--line); border-radius:6px;
       background:var(--bg); color:var(--ink); width:100%; }
+    td.actions { white-space:nowrap; text-align:right; }
+    td.actions form { display:inline; }
+    .icon-button { background:transparent; color:var(--muted); border:1px solid var(--line);
+      border-radius:6px; padding:.35rem .5rem; line-height:1; }
+    .icon-button:hover { color:var(--accent); border-color:var(--accent); }
+    .icon-button.danger:hover { color:var(--expired); border-color:var(--expired); }
+    dialog { border:1px solid var(--line); border-radius:8px; background:var(--panel);
+      color:var(--ink); padding:1.25rem; width:min(640px, 92vw); }
+    dialog::backdrop { background:rgba(0,0,0,.45); }
+    dialog h2 { font-size:1rem; margin:0 0 1rem; }
+    .dialog-actions { display:flex; gap:.5rem; justify-content:flex-end; margin-top:1.25rem; }
     .fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:.75rem; align-items:end; }
     .muted { color:var(--muted); font-size:.85rem; }
     .flash { border-left:3px solid var(--expired); padding:.6rem .8rem; background:var(--panel); margin-bottom:1rem; }

@@ -65,28 +65,46 @@ Once a scan has run, `latest` is the scan row itself — `id`, `started_at`, `fi
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | `GET` | `/staff` | session | The active roster. `?error=` renders a message, HTML-escaped. |
-| `POST` | `/staff` | session | Adds a staff member. Always `303` to `/staff`, or to `/staff?error=...` on rejection. |
+| `POST` | `/staff` | session | Adds a staff member from the panel. Always `303` to `/staff`, or to `/staff?error=...` on rejection. |
+| `POST` | `/staff/{staff_id}/edit` | session | Saves the same panel for an existing member. |
 | `POST` | `/staff/{staff_id}/adopt-name` | session | Replaces the roster spelling with the Society's. No-op when no Society name is stored. |
 | `POST` | `/staff/{staff_id}/remove` | session | Soft delete. Historical scan results are kept. |
 
-`POST /staff` accepts these form fields:
+`POST /staff` and `POST /staff/{staff_id}/edit` take the same form, because the interface
+uses one panel for both — the **Add a staff member** button and the pencil on a row open
+the same dialog, empty or filled in:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `name` | string | yes | Roster spelling. Whitespace is collapsed. |
 | `member_code` | string | yes | Lifesaving Society member ID. Upper-cased; rejected unless alphanumeric. |
+| `red_cross_number` | string | no | Canadian Red Cross certificate number. Digits only. Blank clears it. |
 | `email` | string | no | Reminder address. Without one, the member is silently skipped by every reminder. |
 | `phone` | string | no | Stored but unused — no channel reads it. |
 | `away` | boolean | no | Moves the member into the "Away" section. |
+| `manual_<CODE>` | date | no | An `ISO 8601` certification date entered by hand, one field per column — `manual_FA`, `manual_CPR-C`, and so on. Blank clears the entry. |
 
-The member ID is verified against the Society **before** the row is written, so the request
-takes a second or two. Three rejections are possible, and none of them write anything:
+On an add, both the member ID and the certificate number are verified before anything is
+written, so the request takes a second or two. On an edit, each check runs only when its
+own field changed, so a save that touches neither reaches no network at all.
+
+Everything is validated before anything is written. A malformed date at the bottom of the
+panel rejects the whole submission rather than leaving the details above it saved:
 
 ```text
+A name is required.
 Member ID must be letters and digits only.
 ABC123: Member ID was not found.
 ABC123 is already on the roster.
+A Red Cross certificate number must be digits only.
+Red Cross 999999999: No Red Cross certificate matches that number and last name.
+FA manual date must be a real date.
 ```
+
+A manual date is an additional source rather than an override. It competes with whatever
+the last scan found on the same terms the grid already uses — a purpose-issued award beats
+a provisional credit, and otherwise the later expiry wins — so entering an old date cannot
+hide a current award. It applies immediately, without waiting for the next scan.
 
 ### Exports and reporting
 

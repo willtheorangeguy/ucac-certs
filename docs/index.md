@@ -21,6 +21,11 @@ project is built.
   Excel and PDF export.
 - Member IDs verified against the Society at the moment a staff member is added, so a
   typo is caught at entry instead of surfacing as a blank row a week later.
+- First aid held through the Canadian Red Cross validated against the Red Cross's own
+  certificate validator, on the Aquatic Centre's shorter schedule rather than the
+  three years printed on the card.
+- Certifications earned through a third party entered by hand, competing with the
+  scanned award rather than overriding it.
 - Automatic email reminders at 30, 14, and 7 days before expiry, deduplicated so a
   restart or a repeat scan cannot send the same reminder twice.
 - A diagnostics page listing failed lookups, name mismatches, unrecognised awards, and

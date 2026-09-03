@@ -4,7 +4,7 @@ import logging
 import os
 import tempfile
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request
@@ -27,7 +27,7 @@ from .repository import (
     grid_rows_to_member_rows,
     rows_from_scan,
 )
-from .scans import TIMEZONE, ScanRunner, verify_member_code
+from .scans import TIMEZONE, ScanRunner, verify_member_code, verify_red_cross_number
 from .scheduler import Scheduler
 from .settings import Settings, load_settings
 
@@ -140,7 +140,8 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     @app.get("/", response_class=HTMLResponse)
     def dashboard(request: Request, user: str = Depends(current_user)):
         scan_id = scan_repo.latest_complete_id()
-        rows = rows_from_scan(database, scan_id) if scan_id else []
+        today = datetime.now(TIMEZONE).date()
+        rows = rows_from_scan(database, scan_id, today) if scan_id else []
         return render(
             request,
             "dashboard.html",
@@ -164,38 +165,121 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     # --- roster --------------------------------------------------------
     @app.get("/staff", response_class=HTMLResponse)
     def staff_list(request: Request, user: str = Depends(current_user), error: str = ""):
-        return render(request, "staff.html", user=user, staff=staff_repo.active(), error=error)
+        roster = staff_repo.active()
+        return render(
+            request,
+            "staff.html",
+            user=user,
+            staff=roster,
+            # The edit panel is server-rendered per row, so its manual dates come
+            # down with the page rather than through a second request.
+            manual={member.id: staff_repo.manual_certs(member.id) for member in roster},
+            error=error,
+        )
 
     @app.post("/staff")
-    def staff_add(
-        user: str = Depends(current_user),
-        name: str = Form(...),
-        member_code: str = Form(...),
-        email: str = Form(""),
-        phone: str = Form(""),
-        away: bool = Form(False),
-    ):
-        code = member_code.strip().upper()
+    async def staff_add(request: Request, user: str = Depends(current_user)):
+        form = await request.form()
+        name = " ".join(str(form.get("name", "")).split())
+        code = str(form.get("member_code", "")).strip().upper()
+        red_cross = str(form.get("red_cross_number", "")).strip() or None
+
+        if not name:
+            return _staff_error("A name is required.")
         if not code.isalnum():
             return _staff_error("Member ID must be letters and digits only.")
+        if red_cross and not red_cross.isdigit():
+            return _staff_error("A Red Cross certificate number must be digits only.")
+        try:
+            manual = _manual_dates(form)
+        except ValueError as exc:
+            return _staff_error(str(exc))
+
         # Verify against the Society now, so a typo is caught at entry rather than
         # surfacing as an empty row after the next scan.
         result = verify_member_code(code, name)
         if not result.ok:
             return _staff_error(f"{code}: {result.error}")
+        if red_cross:
+            certificate = verify_red_cross_number(red_cross, name)
+            if not certificate.ok:
+                return _staff_error(f"Red Cross {red_cross}: {certificate.error}")
         try:
-            staff_repo.add(
+            member = staff_repo.add(
                 name=name,
                 member_code=code,
                 society_name=result.society_name,
-                email=email.strip() or None,
-                phone=phone.strip() or None,
-                away=away,
+                email=str(form.get("email", "")).strip() or None,
+                phone=str(form.get("phone", "")).strip() or None,
+                red_cross_number=red_cross,
+                away=bool(form.get("away")),
                 actor=user,
             )
         except DuplicateMemberCode as exc:
             return _staff_error(str(exc))
+        for column_code, certified in manual.items():
+            staff_repo.set_manual_cert(member.id, column_code, certified, actor=user)
         return RedirectResponse("/staff", status_code=303)
+
+    @app.post("/staff/{staff_id}/edit")
+    async def staff_edit(staff_id: int, request: Request, user: str = Depends(current_user)):
+        member = staff_repo.get(staff_id)
+        if member is None:
+            return _staff_error("That staff member is no longer on the roster.")
+        form = await request.form()
+        name = " ".join(str(form.get("name", "")).split()) or member.name
+        code = str(form.get("member_code", "")).strip().upper() or member.member_code
+        red_cross = str(form.get("red_cross_number", "")).strip() or None
+
+        if not code.isalnum():
+            return _staff_error("Member ID must be letters and digits only.")
+        if red_cross and not red_cross.isdigit():
+            return _staff_error("A Red Cross certificate number must be digits only.")
+        # Everything is validated before anything is written, so a bad date at the
+        # bottom of the panel cannot leave the details above it half-saved.
+        try:
+            manual = _manual_dates(form)
+        except ValueError as exc:
+            return _staff_error(str(exc))
+
+        changes = {
+            "name": name,
+            "email": str(form.get("email", "")).strip() or None,
+            "phone": str(form.get("phone", "")).strip() or None,
+            "away": int(bool(form.get("away"))),
+            "red_cross_number": red_cross,
+        }
+        # Only re-verify what actually changed: each check is a live request to an
+        # outside service, and saving a phone number should not cost two lookups.
+        if code != member.member_code:
+            result = verify_member_code(code, name)
+            if not result.ok:
+                return _staff_error(f"{code}: {result.error}")
+            changes["member_code"] = code
+            changes["society_name"] = result.society_name
+        if red_cross and red_cross != member.red_cross_number:
+            certificate = verify_red_cross_number(red_cross, name)
+            if not certificate.ok:
+                return _staff_error(f"Red Cross {red_cross}: {certificate.error}")
+
+        try:
+            staff_repo.update(staff_id, actor=user, **changes)
+        except DuplicateMemberCode as exc:
+            return _staff_error(str(exc))
+        for column_code, certified in manual.items():
+            staff_repo.set_manual_cert(staff_id, column_code, certified, actor=user)
+        return RedirectResponse("/staff", status_code=303)
+
+    def _manual_dates(form) -> dict[str, date | None]:
+        """The panel's hand-entered dates, one per column. ``None`` clears an entry."""
+        dates: dict[str, date | None] = {}
+        for column in COLUMNS:
+            raw = str(form.get(f"manual_{column.code}", "")).strip()
+            try:
+                dates[column.code] = date.fromisoformat(raw) if raw else None
+            except ValueError:
+                raise ValueError(f"{column.code} manual date must be a real date.") from None
+        return dates
 
     @app.post("/staff/{staff_id}/adopt-name")
     def staff_adopt_name(staff_id: int, user: str = Depends(current_user)):
@@ -219,10 +303,12 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
         scan_id = scan_repo.latest_complete_id()
         if scan_id is None:
             raise HTTPException(status_code=404, detail="No completed scan yet.")
-        rows = grid_rows_to_member_rows(rows_from_scan(database, scan_id), COLUMNS)
         scan = scan_repo.latest() or {}
         finished = scan.get("finished_at") or datetime.now(TIMEZONE).isoformat()
         generated = datetime.fromisoformat(finished)
+        rows = grid_rows_to_member_rows(
+            rows_from_scan(database, scan_id, generated.date()), COLUMNS
+        )
         notes = scan_repo.notes(scan_id)
         return Grid(
             as_of=generated.date(),
