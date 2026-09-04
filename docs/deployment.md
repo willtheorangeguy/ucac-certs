@@ -10,7 +10,7 @@ and runs tests.
 | Requirement | Why |
 |---|---|
 | A Fly.io account and `flyctl` | Hosts the application and the volume |
-| A Resend account with a verified sending domain | Sign-in links and reminder emails |
+| A Resend account with a verified sending domain | Sign-in codes and reminder emails |
 | A domain you control | Resend verifies ownership through DNS records |
 
 ## Configuration on Fly
@@ -64,9 +64,8 @@ US-hosted.
     ```
 
     !!! danger
-        `BASE_URL` must match the deployed origin exactly. Sign-in links are built from it
-        and from nothing else, so a wrong value sends every manager to a host that cannot
-        redeem their token.
+        `BASE_URL` must match the deployed origin exactly. An `https` value is what marks
+        the session cookie `Secure`, so a wrong value quietly weakens every session.
 
 4. Deploy.
 
@@ -122,14 +121,15 @@ Because each recipient counts separately, the application sends one message per 
 rather than batching a reminder to several addresses.
 
 With `RESEND_API_KEY` unset the application still runs, but nothing is sent and nobody can
-sign in on a deployed instance — the link is only written to the log, and production logs
+sign in on a deployed instance — the code is only written to the log, and production logs
 deliberately omit it.
 
 ### Deliverability
 
-A brand-new sending domain mailing an institutional address with a sign-in link fits the
-shape of a phishing message, and it will be filtered before anyone reports a bug. Three
-things help:
+A brand-new sending domain mailing an institutional address fits the shape of a phishing
+message, and it will be filtered before anyone reports a bug. The sign-in mail carries a
+six-digit code and no URL at all, which is the single biggest thing that helps: a link
+scanner has nothing to follow. Three more:
 
 - Add a DMARC record. Start permissive and tighten later:
 

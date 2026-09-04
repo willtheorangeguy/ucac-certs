@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from lss_report.web.app import create_app
-from lss_report.web.auth import SESSION_COOKIE, Auth
+from lss_report.web.auth import PENDING_COOKIE, SESSION_COOKIE, Auth
 from lss_report.web.repository import StaffRepository
 from lss_report.web.scans import Verification
 
@@ -44,9 +44,19 @@ def test_login_distinguishes_managers_from_strangers(client):
     assert stranger.headers["location"] == "/login?denied=1"
 
 
-def test_stranger_never_gets_a_token(client, database):
+def test_stranger_never_gets_a_code(client, database):
     client.post("/login", data={"email": "stranger@example.org"})
     assert database.query("SELECT id FROM login_token") == []
+
+
+def test_the_code_form_signs_a_manager_in(client, database, settings):
+    auth = Auth(database, settings)
+    code = auth.issue_login_code("manager@example.org", client="testclient")
+    client.cookies.set(PENDING_COOKIE, auth.create_pending("manager@example.org"))
+    response = client.post("/verify", data={"code": code})
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    assert SESSION_COOKIE in response.headers["set-cookie"]
 
 
 def test_signed_in_manager_sees_the_dashboard(signed_in):

@@ -44,7 +44,7 @@ other install paths are covered in [Installation](installation.md).
     ```
 
     ```text
-    2026-08-30 22:36:41,651 WARNING lss_report.web.app RESEND_API_KEY is unset; login links will be written to the log instead.
+    2026-08-30 22:36:41,651 WARNING lss_report.web.app RESEND_API_KEY is unset; login codes will be written to the log instead.
     INFO:     Started server process [10928]
     INFO:     Waiting for application startup.
     INFO:     Application startup complete.
@@ -54,23 +54,23 @@ other install paths are covered in [Installation](installation.md).
     That warning is expected locally. It is how you sign in without an email provider.
 
 3. Open `http://127.0.0.1:8000`, which redirects to the sign-in page. Enter one of the
-    addresses from `MANAGER_EMAILS` and submit.
+    addresses from `MANAGER_EMAILS` and submit. The page swaps to a box for a six-digit
+    code.
 
-4. Read the sign-in link out of the server log and open it.
+4. Read the code out of the server log and type it in.
 
     ```text
-    WARNING lss_report.web.notify Email not configured; would send to manager@example.org: Sign in here (valid 15 minutes, single use):
+    WARNING lss_report.web.notify Email not configured; would send to manager@example.org: Your sign-in code is 483920
 
-    http://127.0.0.1:8000/auth?token=3jw2o5jSQu3iL42DtOUhDI_gr__lvxxxfkMPSfd5WpE
+    It works once and expires in 15 minutes.
     ```
 
-    The link is valid for 15 minutes and works once. Opening it sets a session cookie
+    The code is valid for 15 minutes and works once. Submitting it sets a session cookie
     that lasts 30 days and lands you on the dashboard.
 
     !!! warning
-        The link is built from `BASE_URL`, not from the port you passed on the command
-        line. If you started the server on a non-default port, `BASE_URL` must match or
-        the link points at the wrong host.
+        Five wrong guesses in fifteen minutes locks the address out for the rest of that
+        window, and so does requesting five codes. Wait it out rather than retrying.
 
 5. On the **Staff** page, select **Add a staff member**. Give a real name and a real
     Lifesaving Society member ID.

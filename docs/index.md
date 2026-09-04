@@ -17,7 +17,7 @@ project is built.
 - Expiry computed from the certification date plus a per-column validity period, so the
   grid is accurate even though the source publishes no expiry.
 - Red for expired, yellow for expiring within 30 days, grey for nothing on record.
-- A manager web application with magic-link sign-in, roster management, and one-click
+- A manager web application with emailed-code sign-in, roster management, and one-click
   Excel and PDF export.
 - Member IDs verified against the Society at the moment a staff member is added, so a
   typo is caught at entry instead of surfacing as a blank row a week later.
@@ -39,7 +39,7 @@ cp .env.example .env
 python -m lss_report.web.server --env-file .env
 ```
 
-Open `http://127.0.0.1:8000`. Without a `RESEND_API_KEY`, the sign-in link is written to
+Open `http://127.0.0.1:8000`. Without a `RESEND_API_KEY`, the sign-in code is written to
 the log rather than emailed, which is how you sign in locally.
 
 See [Getting started](getting-started.md) for the full walkthrough.

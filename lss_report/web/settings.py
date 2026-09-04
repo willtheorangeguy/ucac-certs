@@ -8,7 +8,7 @@ from ..config import ConfigurationError
 
 DEFAULT_DATABASE = Path("data/lss.sqlite3")
 DEFAULT_UPLOADS = Path("data/uploads")
-LOGIN_TOKEN_MINUTES = 15
+LOGIN_CODE_MINUTES = 15
 SESSION_DAYS = 30
 
 
@@ -78,7 +78,7 @@ def load_settings(environ: dict[str, str] | None = None) -> Settings:
         raise ConfigurationError("MANAGER_EMAILS contains an entry that is not an address.")
 
     if not env.get("RESEND_API_KEY"):
-        warnings.append("RESEND_API_KEY is unset; login links will be written to the log instead.")
+        warnings.append("RESEND_API_KEY is unset; login codes will be written to the log instead.")
 
     # Copies of certificates default to sitting beside the database rather than at a
     # fixed path, so a deployment that moves its data volume takes them along without

@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from lss_report.web.app import create_app
-from lss_report.web.auth import SESSION_COOKIE, Auth
+from lss_report.web.auth import PENDING_COOKIE, SESSION_COOKIE, Auth
 from lss_report.web.repository import StaffRepository
 from lss_report.web.scans import Verification
 
@@ -41,10 +41,16 @@ def test_write_endpoints_reject_anonymous_callers(client, database, path, payloa
     assert StaffRepository(database).active() == []
 
 
+def sign_in(client, database, settings, email="manager@example.org"):
+    """Walk the two-step code form the way a manager does, returning the /verify response."""
+    auth = Auth(database, settings)
+    code = auth.issue_login_code(email, client="testclient")
+    client.cookies.set(PENDING_COOKIE, auth.create_pending(email))
+    return client.post("/verify", data={"code": code})
+
+
 def test_session_cookie_is_httponly_and_samesite(client, database, settings):
-    token = Auth(database, settings).issue_login_token("manager@example.org", client="1.2.3.4")
-    response = client.get(f"/auth?token={token}")
-    cookie = response.headers["set-cookie"].lower()
+    cookie = sign_in(client, database, settings).headers["set-cookie"].lower()
     assert "httponly" in cookie
     assert "samesite=lax" in cookie
 
@@ -52,8 +58,7 @@ def test_session_cookie_is_httponly_and_samesite(client, database, settings):
 def test_session_cookie_is_not_marked_secure_over_plain_http(client, database, settings):
     # base_url is http in tests; a Secure cookie would never be sent back and would
     # silently break local development. On https deployments it must be set.
-    token = Auth(database, settings).issue_login_token("manager@example.org", client="1.2.3.4")
-    response = client.get(f"/auth?token={token}")
+    response = sign_in(client, database, settings)
     assert "secure" not in response.headers["set-cookie"].lower()
 
 
@@ -90,13 +95,15 @@ def test_unapproved_address_is_told_it_has_no_access(client):
     assert "does not have access" in client.get("/login", params={"denied": "1"}).text
 
 
-def test_an_approved_address_is_told_the_link_was_sent(client):
+def test_an_approved_address_is_told_the_code_was_sent(client):
     response = client.post("/login", data={"email": "manager@example.org"})
     assert response.headers["location"] == "/login?sent=1"
-    assert "on its way" in client.get("/login", params={"sent": "1"}).text
+    sent = client.get("/login", params={"sent": "1"}).text
+    assert "on its way" in sent
+    assert 'action="/verify"' in sent
 
 
-def test_a_rejected_address_still_never_receives_a_token(client, database):
+def test_a_rejected_address_still_never_receives_a_code(client, database):
     client.post("/login", data={"email": "nobody@example.org"})
     assert database.query("SELECT id FROM login_token") == []
 
@@ -109,11 +116,43 @@ def test_probing_for_managers_is_rate_limited(client, database):
     assert database.query("SELECT id FROM login_token") == []
 
 
-def test_auth_endpoint_ignores_a_forged_token(client):
-    response = client.get("/auth?token=not-a-real-token")
+def test_verify_endpoint_ignores_a_wrong_code(client, database, settings):
+    auth = Auth(database, settings)
+    auth.issue_login_code("manager@example.org", client="testclient")
+    client.cookies.set(PENDING_COOKIE, auth.create_pending("manager@example.org"))
+    response = client.post("/verify", data={"code": "000000"})
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login?sent=1&bad=1"
+    assert SESSION_COOKIE not in response.headers.get("set-cookie", "")
+
+
+def test_verify_endpoint_refuses_a_code_with_no_pending_address(client, database, settings):
+    # Without the signed cookie there is no address to check the code against, so a
+    # caller cannot point a guessed code at an address of their choosing.
+    code = Auth(database, settings).issue_login_code("manager@example.org", client="testclient")
+    response = client.post("/verify", data={"code": code})
     assert response.status_code == 303
     assert response.headers["location"] == "/login"
     assert SESSION_COOKIE not in response.headers.get("set-cookie", "")
+
+
+def test_verify_endpoint_refuses_a_forged_pending_cookie(client, database, settings):
+    auth = Auth(database, settings)
+    code = auth.issue_login_code("manager@example.org", client="testclient")
+    client.cookies.set(PENDING_COOKIE, auth.create_pending("manager@example.org")[:-2] + "xy")
+    response = client.post("/verify", data={"code": code})
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
+    assert SESSION_COOKIE not in response.headers.get("set-cookie", "")
+
+
+def test_the_sign_in_mail_carries_no_link_for_a_scanner_to_follow(client, monkeypatch):
+    sent = []
+    monkeypatch.setattr(
+        "lss_report.web.notify.EmailChannel.send", lambda self, message: sent.append(message)
+    )
+    client.post("/login", data={"email": "manager@example.org"})
+    assert sent and "http" not in sent[0].body
 
 
 def test_scan_status_needs_a_session(client):

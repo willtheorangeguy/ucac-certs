@@ -29,7 +29,7 @@ Names are used verbatim — there is no prefix scheme.
 | `MANAGER_EMAILS` | list | *required* | Comma- or newline-separated addresses allowed to sign in. Compared case-insensitively. |
 | `RESEND_API_KEY` | string | unset | Resend API key. Unset means no mail is sent at all. |
 | `MAIL_FROM` | string | `certifications@example.org` | Envelope sender. Must be an address on a domain verified with Resend. |
-| `BASE_URL` | string | `http://127.0.0.1:8000` | Public origin. Sign-in links are built from it, and an `https` value is what marks the session cookie `Secure`. A trailing slash is stripped. |
+| `BASE_URL` | string | `http://127.0.0.1:8000` | Public origin. An `https` value is what marks the session cookie `Secure`. A trailing slash is stripped. |
 | `DATABASE_PATH` | path | `data/lss.sqlite3` | SQLite file. Parent directories are created on startup. |
 | `UPLOADS_PATH` | path | `uploads/` beside the database | Directory holding uploaded copies of certificates. Created on the first upload. |
 | `SCAN_HOUR` | integer | `6` | Hour, 0–23, at which the Monday scan runs, in `America/Edmonton`. |
@@ -70,9 +70,9 @@ listed here so nobody hunts for an environment variable that does not exist.
 | Scan day | Monday | `lss_report/web/scheduler.py` |
 | Scheduler tick | 60 seconds | `lss_report/web/scheduler.py` |
 | Timezone | `America/Edmonton` | `lss_report/web/scans.py` |
-| Sign-in link lifetime | 15 minutes, single use | `lss_report/web/settings.py` |
+| Sign-in code lifetime | 15 minutes, single use | `lss_report/web/settings.py` |
 | Session lifetime | 30 days | `lss_report/web/settings.py` |
-| Sign-in rate limit | 5 attempts per 15 minutes, per address and per IP | `lss_report/web/auth.py` |
+| Sign-in rate limit | 5 attempts per 15 minutes, per address and per IP, counted separately for requesting a code and for guessing one | `lss_report/web/auth.py` |
 | "Expiring soon" threshold | 30 days | `lss_report/grid.py` |
 | Society request spacing | 1.1 seconds, 2 retries, 20-second timeout | `lss_report/scraper.py` |
 
@@ -119,7 +119,7 @@ SCAN_HOUR=6
 REMINDER_HOUR=7
 ```
 
-With `RESEND_API_KEY` empty, sign-in links are written to the log instead of emailed.
+With `RESEND_API_KEY` empty, sign-in codes are written to the log instead of emailed.
 That is the intended local behaviour and the only way to sign in without a mail provider.
 
 For production values, see [Deployment](deployment.md).
@@ -151,7 +151,7 @@ rejected. `staff.json` is gitignored because it carries staff personal informati
 | Symptom | Cause |
 |---|---|
 | `Configuration error: SESSION_SECRET is required.` | The variable is unset or empty. `--env-file` was possibly not passed. |
-| Sign-in link points at the wrong host | `BASE_URL` does not match the origin you are actually serving from. It is the only source for the link. |
+| Bounced back to the address form after typing a code | The `lss_pending` cookie expired. It lives as long as the code does, 15 minutes. Request a new code. |
 | Signed in, then immediately signed out | The address was removed from `MANAGER_EMAILS`. Membership is re-checked on every request, not just at sign-in. |
 | Everyone was signed out at once | `SESSION_SECRET` changed. Existing cookies no longer verify. |
 | Reminders never send | `RESEND_API_KEY` is unset, or the staff have no email address on their roster entry. Both are silent by design. |

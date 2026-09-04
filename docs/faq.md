@@ -196,9 +196,15 @@ Questions about why the tool behaves the way it does. Error messages with a fix 
 
 ??? question "Why is there no password?"
 
-    There is no password to leak, reuse, or reset. Sign-in is a single-use link, valid for
-    15 minutes, sent to an address on the manager allowlist. That allowlist is the entire
-    security boundary — anyone on it can sign in, and nobody else can.
+    There is no password to leak, reuse, or reset. Sign-in is a single-use six-digit code,
+    valid for 15 minutes, sent to an address on the manager allowlist. That allowlist is the
+    entire security boundary — anyone on it can sign in, and nobody else can.
+
+    It used to be a link in the email. Institutional mail filters treat a link to an
+    unfamiliar host as phishing and drop the message, so a code replaced it: there is
+    nothing in the mail for a scanner to follow. Six digits is only a million values, so
+    redeeming a code is rate limited exactly as requesting one is — five tries per fifteen
+    minutes, per address and per IP.
 
 ??? question "The sign-in form told me my address has no access. Doesn't that leak who the managers are?"
 
@@ -208,7 +214,7 @@ Questions about why the tool behaves the way it does. Error messages with a fix 
 
     What makes it defensible is the rate limit: five attempts per fifteen minutes, counted
     both per address and per IP. Probing the allowlist is possible but slow, and a rejected
-    address never has a token created for it. Reverting to a single identical response for
+    address never has a code created for it. Reverting to a single identical response for
     both cases closes the oracle, and is a two-line change.
 
 {{ support() }}

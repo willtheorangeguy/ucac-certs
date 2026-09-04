@@ -48,10 +48,10 @@ class EmailChannel:
     def send(self, message: Message) -> None:
         if not self.available():
             if self.settings.is_local:
-                # Local development: printing the body is how you get a sign-in link.
+                # Local development: printing the body is how you get a sign-in code.
                 logger.warning("Email not configured; would send to %s: %s", message.to, message.body)
             else:
-                # Never write sign-in links or staff details to production logs.
+                # Never write sign-in codes or staff details to production logs.
                 logger.error(
                     "Email not configured; dropped a message to %s. Set RESEND_API_KEY.",
                     message.to,

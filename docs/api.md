@@ -19,9 +19,9 @@ longer in `MANAGER_EMAILS`.
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `GET` | `/login` | none | Sign-in form. `?sent=1` confirms a link was sent; `?denied=1` reports an address with no access. |
-| `POST` | `/login` | none | Form field `email`. Always `303`, to `/login?sent=1` for a manager or `/login?denied=1` otherwise. |
-| `GET` | `/auth` | none | Query parameter `token`. Redeems a sign-in link, sets the session cookie, `303` to `/`. An invalid, expired, or already-used token is `303` to `/login` with no cookie. |
+| `GET` | `/login` | none | Sign-in form. `?sent=1` swaps it for the code form; `?bad=1` marks a wrong code; `?denied=1` reports an address with no access. |
+| `POST` | `/login` | none | Form field `email`. Always `303`, to `/login?sent=1` for a manager or `/login?denied=1` otherwise. A manager also gets the `lss_pending` cookie, a signed record of which address the code went to. |
+| `POST` | `/verify` | `lss_pending` | Form field `code`. Redeems the six-digit code for the address in the cookie, sets the session cookie, `303` to `/`. A wrong, expired, or already-used code is `303` to `/login?sent=1&bad=1`; a missing or forged cookie is `303` to `/login`. Neither sets a session cookie. |
 | `POST` | `/logout` | none | Clears the cookie and redirects to `/login`. |
 
 ```bash
@@ -37,7 +37,7 @@ location: /login?sent=1
     `POST /login` deliberately distinguishes an approved address from an unapproved one.
     That is clearer for staff, and it does let someone probe which addresses are managers.
     The per-address and per-IP rate limits — five attempts per fifteen minutes — are what
-    keep the probing slow. A rejected address never has a token created for it.
+    keep the probing slow. A rejected address never has a code created for it.
 
 ### Dashboard and scans
 

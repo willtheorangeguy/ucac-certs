@@ -20,7 +20,7 @@ from ..grid import Grid
 from ..models import CellStatus
 from ..pdf import build_pdf
 from .. import theme
-from .auth import SESSION_COOKIE, Auth
+from .auth import PENDING_COOKIE, SESSION_COOKIE, Auth
 from .db import Database
 from .files import (
     ACCEPT_ATTRIBUTE,
@@ -40,7 +40,7 @@ from .repository import (
 )
 from .scans import TIMEZONE, ScanRunner, verify_member_code, verify_red_cross_number
 from .scheduler import Scheduler
-from .settings import Settings, load_settings
+from .settings import LOGIN_CODE_MINUTES, Settings, load_settings
 
 logger = logging.getLogger(__name__)
 TEMPLATES = Path(__file__).parent / "templates"
@@ -107,25 +107,28 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     # --- authentication ------------------------------------------------
     @app.get("/login", response_class=HTMLResponse)
-    def login_form(request: Request, sent: bool = False, denied: bool = False):
-        return render(request, "login.html", sent=sent, denied=denied)
+    def login_form(request: Request, sent: bool = False, denied: bool = False, bad: bool = False):
+        return render(request, "login.html", sent=sent, denied=denied, bad=bad)
 
     @app.post("/login")
     def login_submit(request: Request, email: str = Form(...)):
         client = request.client.host if request.client else "unknown"
-        token = auth.issue_login_token(email, client=client)
-        if token:
-            link = f"{settings.base_url}/auth?token={token}"
+        code = auth.issue_login_code(email, client=client)
+        if code:
             try:
                 email_channel.send(
                     Message(
                         to=email.strip(),
-                        subject="Your certification dashboard sign-in link",
-                        body=f"Sign in here (valid 15 minutes, single use):\n\n{link}\n",
+                        subject="Your certification dashboard sign-in code",
+                        body=(
+                            f"Your sign-in code is {code}\n\n"
+                            f"It works once and expires in {LOGIN_CODE_MINUTES} minutes.\n"
+                            "If you did not ask to sign in, ignore this message.\n"
+                        ),
                     )
                 )
             except Exception:  # noqa: BLE001 - never reveal delivery state to the caller
-                logger.exception("Login link delivery failed")
+                logger.exception("Login code delivery failed")
         # Telling the caller their address is not approved is a deliberate trade of
         # security for clarity: it lets someone probe which addresses are managers.
         # The per-address and per-IP rate limits are what keep that probing slow.
@@ -133,28 +136,46 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
         if not settings.is_manager(email):
             logger.info("Rejected sign-in attempt for an address that is not a manager")
             return RedirectResponse("/login?denied=1", status_code=303)
-        return RedirectResponse("/login?sent=1", status_code=303)
+        response = RedirectResponse("/login?sent=1", status_code=303)
+        # The code form has to know which address the code went to. Carrying it in a
+        # signed cookie keeps it out of the URL and means the reader does not retype it.
+        response.set_cookie(
+            PENDING_COOKIE,
+            auth.create_pending(email),
+            httponly=True,
+            secure=settings.base_url.startswith("https"),
+            samesite="lax",
+            max_age=LOGIN_CODE_MINUTES * 60,
+        )
+        return response
 
-    @app.get("/auth")
-    def auth_callback(token: str = ""):
-        email = auth.redeem(token)
+    @app.post("/verify")
+    def verify_code(request: Request, code: str = Form(...)):
+        client = request.client.host if request.client else "unknown"
+        email = auth.read_pending(request.cookies.get(PENDING_COOKIE))
         if email is None:
+            # The pending cookie expired or was never set: start again from the address.
             return RedirectResponse("/login", status_code=303)
+        signed_in = auth.redeem(email, code, client=client)
+        if signed_in is None:
+            return RedirectResponse("/login?sent=1&bad=1", status_code=303)
         response = RedirectResponse("/", status_code=303)
         response.set_cookie(
             SESSION_COOKIE,
-            auth.create_session(email),
+            auth.create_session(signed_in),
             httponly=True,
             secure=settings.base_url.startswith("https"),
             samesite="lax",
             max_age=30 * 86400,
         )
+        response.delete_cookie(PENDING_COOKIE)
         return response
 
     @app.post("/logout")
     def logout():
         response = RedirectResponse("/login", status_code=303)
         response.delete_cookie(SESSION_COOKIE)
+        response.delete_cookie(PENDING_COOKIE)
         return response
 
     # --- dashboard -----------------------------------------------------

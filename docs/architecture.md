@@ -127,7 +127,7 @@ staff already read. The PDF is portrait letter, sized so the whole overview fits
 | `db.py` | One shared `sqlite3` connection guarded by an `RLock`. |
 | `files.py` | Uploaded copies of certificates: what is accepted, and where the bytes go. |
 | `repository.py` | All SQL. `StaffRepository` owns the roster; `ScanRepository` owns scans, results, notes, and the reminder schedule. |
-| `auth.py` | Magic-link issue and redeem, rate limiting, signed session cookies. |
+| `auth.py` | Sign-in code issue and redeem, rate limiting, signed session and pending cookies. |
 | `scans.py` | `verify_member_code` and `verify_red_cross_number` for roster entry, `run_scan`, and `ScanRunner` — the worker thread. |
 | `notify.py` | The `Channel` protocol, the Resend email channel, and reminder deduplication. |
 | `scheduler.py` | A daemon thread ticking once a minute, firing the weekly scan and the daily reminder pass. |
@@ -186,7 +186,7 @@ table untouched and a new column would otherwise never appear in production.
 | `scan` | One row per scan: start, finish, status, who triggered it. |
 | `scan_result` | One row per staff member per column: expiry, status, source award, provisional flag. |
 | `scan_note` | Diagnostics for a scan, keyed by kind: `error`, `name`, `unmapped`, `disagreement`, `redcross`. |
-| `login_token` | Hashed single-use sign-in tokens with an expiry. |
+| `login_token` | Single-use sign-in codes, stored as a keyed digest, with an expiry. |
 | `login_attempt` | Rate-limit ledger, keyed by address and by client IP. |
 | `notification_log` | Every reminder sent. Doubles as the deduplication key. |
 | `audit` | Every roster change, with actor and timestamp. |

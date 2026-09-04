@@ -44,7 +44,7 @@ python -m pytest -k "expiry or reminder" -v
 | `test_config.py` | Dotenv parsing, `staff.json` validation and its rejections |
 | `test_cli.py` | The `lss-report` entry point |
 | `test_repository.py` | Roster CRUD, soft delete, scan storage, manual dates, the schema migration, the reminder schedule |
-| `test_auth.py` | Token issue and redeem, single use, expiry, rate limiting |
+| `test_auth.py` | Code issue and redeem, single use, expiry, keyed digest, rate limiting on both issuing and guessing |
 | `test_notify.py` | Resend delivery, reminder text, deduplication |
 | `test_scheduler.py` | Weekly and daily firing, and that neither can double-fire |
 | `test_files.py` | What an upload has to be to be stored, the size limit, and generated names |
@@ -89,9 +89,10 @@ exercising features:
 - Reflected error messages and staff names are HTML-escaped.
 - A staff name containing an apostrophe cannot break out of the removal confirmation's
   JavaScript string.
-- An unapproved address is told it has no access, never receives a token, and probing is
+- An unapproved address is told it has no access, never receives a code, and probing is
   rate-limited.
-- A forged sign-in token sets no cookie.
+- A wrong code, a missing pending cookie, and a forged pending cookie each set no session
+  cookie.
 
 The rejection notice is a deliberate trade: it is clearer for staff, and it does turn the
 sign-in endpoint into an oracle for which addresses are managers. The test that asserts

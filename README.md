@@ -78,15 +78,18 @@ Copy-Item .env.example .env      # fill in SESSION_SECRET and MANAGER_EMAILS
 .venv\Scripts\python.exe -m lss_report.web.server --env-file .env --seed staff.json
 ```
 
-Then open http://127.0.0.1:8000. Without `RESEND_API_KEY` the sign-in link is written to the
+Then open http://127.0.0.1:8000. Without `RESEND_API_KEY` the sign-in code is written to the
 log instead of emailed, which is how you sign in locally.
 
 ### Sign-in
 
-Magic link only, no passwords. `MANAGER_EMAILS` is the entire security boundary: only listed
-addresses can obtain a link. The endpoint responds identically either way, so it cannot be
-used to discover who is a manager. Tokens are stored hashed, single-use, and expire in 15
-minutes; requests are rate-limited per address and per IP.
+A six-digit code by email, no passwords. `MANAGER_EMAILS` is the entire security boundary:
+only listed addresses can obtain a code. Codes are stored as a digest keyed with
+`SESSION_SECRET`, single-use, and expire in 15 minutes. Requesting a code and guessing one
+are each rate-limited to five attempts per fifteen minutes, per address and per IP.
+
+The mail contains no link, deliberately. Institutional filters drop sign-in links to
+unfamiliar hosts as phishing, and a code gives a link scanner nothing to follow.
 
 ### Roster
 
@@ -145,7 +148,7 @@ fly deploy
 fly volumes snapshots list <volume>  # confirm backups before the first real scan
 ```
 
-`BASE_URL` must match the deployed origin or sign-in links point at the wrong host. Seed the
+`BASE_URL` marks the session cookie `Secure` when it is `https`. Seed the
 roster once via `fly ssh console -C "lss-web --seed /data/staff.json"`, or just add staff
 through the UI.
 

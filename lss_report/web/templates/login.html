@@ -13,10 +13,20 @@
 </div>
 {% elif sent %}
 <div class="panel">
-  <p>A sign-in link is on its way to that address.</p>
+  {% if bad %}
+  <p><strong>That code did not work.</strong> Check it and try again, or request a new one.</p>
+  {% else %}
+  <p>A six-digit sign-in code is on its way to that address.</p>
+  {% endif %}
+  <form method="post" action="/verify">
+    <label for="code">Sign-in code</label>
+    <input id="code" name="code" required autocomplete="one-time-code" inputmode="numeric"
+           pattern="[0-9]{6}" maxlength="6" autofocus>
+    <p><button type="submit">Sign in</button></p>
+  </form>
   <p class="muted">
-    The link works once and expires in 15 minutes. If it does not arrive, check your
-    junk folder.
+    The code works once and expires in 15 minutes. If it does not arrive, check your
+    junk folder. <a href="/login">Send a new code</a>
   </p>
 </div>
 {% else %}
@@ -24,7 +34,7 @@
   <form method="post" action="/login">
     <label for="email">Email</label>
     <input id="email" type="email" name="email" required autocomplete="email">
-    <p><button type="submit">Email me a sign-in link</button></p>
+    <p><button type="submit">Email me a sign-in code</button></p>
   </form>
 </div>
 {% endif %}
