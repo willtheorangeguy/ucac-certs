@@ -154,6 +154,26 @@ Questions about why the tool behaves the way it does. Error messages with a fix 
     name. Adding a member runs both checks; editing one runs only the checks whose field
     actually changed, so correcting a phone number is instant.
 
+??? question "What can I upload as a copy of a certificate?"
+
+    A PDF or an image — PNG, JPEG, GIF, WebP, or the HEIC a phone camera produces — up to
+    10 MB. The file button on a roster row opens the copies kept for that person.
+
+    The check is on the file's own leading bytes, not its name, so renaming something to
+    `.pdf` does not get it past. A copy is evidence for whoever asks to see the card; it is
+    never read for dates. Entering a date from a third-party course is still the manual
+    date field in the edit panel.
+
+??? question "Where do the uploaded copies actually live?"
+
+    On disk, in an `uploads/` directory beside the database — on the Fly volume in
+    production — under a generated random name, with the database holding the original file
+    name and who uploaded it. A volume snapshot covers both; a database backup on its own
+    does not.
+
+    Deleting a copy is immediate and permanent. Removing a staff member is not: that is a
+    soft delete, and their copies stay.
+
 ??? question "Why is there a phone field if nothing uses it?"
 
     An SMS channel was built and then removed. The `phone` and `sms_consent_at` columns

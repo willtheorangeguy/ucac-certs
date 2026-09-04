@@ -55,6 +55,41 @@ def _staff(row) -> Staff:
     )
 
 
+@dataclass(frozen=True)
+class CertificateFile:
+    """One stored copy of a certificate. ``stored_name`` addresses it in the FileStore."""
+
+    id: int
+    staff_id: int
+    filename: str
+    stored_name: str
+    content_type: str
+    size_bytes: int
+    uploaded_by: str
+    uploaded_at: str
+
+    @property
+    def size_label(self) -> str:
+        if self.size_bytes < 1024:
+            return f"{self.size_bytes} B"
+        if self.size_bytes < 1024 * 1024:
+            return f"{self.size_bytes / 1024:.0f} KB"
+        return f"{self.size_bytes / (1024 * 1024):.1f} MB"
+
+
+def _certificate_file(row) -> CertificateFile:
+    return CertificateFile(
+        id=row["id"],
+        staff_id=row["staff_id"],
+        filename=row["filename"],
+        stored_name=row["stored_name"],
+        content_type=row["content_type"],
+        size_bytes=row["size_bytes"],
+        uploaded_by=row["uploaded_by"],
+        uploaded_at=row["uploaded_at"],
+    )
+
+
 class DuplicateMemberCode(ValueError):
     pass
 
@@ -194,6 +229,47 @@ class StaffRepository:
                 str(staff_id),
                 f"{column_code} {certification_date.isoformat()}",
             )
+
+    def files(self, staff_id: int) -> list[CertificateFile]:
+        """Stored copies for one staff member, newest first."""
+        rows = self.db.query(
+            "SELECT * FROM certificate_file WHERE staff_id = ? ORDER BY uploaded_at DESC, id DESC",
+            (staff_id,),
+        )
+        return [_certificate_file(row) for row in rows]
+
+    def file(self, file_id: int) -> CertificateFile | None:
+        row = self.db.query_one("SELECT * FROM certificate_file WHERE id = ?", (file_id,))
+        return _certificate_file(row) if row else None
+
+    def add_file(
+        self,
+        staff_id: int,
+        *,
+        filename: str,
+        stored_name: str,
+        content_type: str,
+        size_bytes: int,
+        actor: str,
+    ) -> CertificateFile:
+        with self.db.write() as connection:
+            cursor = connection.execute(
+                "INSERT INTO certificate_file (staff_id, filename, stored_name, content_type,"
+                " size_bytes, uploaded_by, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (staff_id, filename, stored_name, content_type, size_bytes, actor, _now()),
+            )
+            _audit(connection, actor, "file.add", str(staff_id), filename)
+        return self.file(cursor.lastrowid)  # type: ignore[return-value]
+
+    def remove_file(self, file_id: int, *, actor: str) -> CertificateFile | None:
+        """Forget a stored copy, returning the row so its bytes can be deleted too."""
+        record = self.file(file_id)
+        if record is None:
+            return None
+        with self.db.write() as connection:
+            connection.execute("DELETE FROM certificate_file WHERE id = ?", (file_id,))
+            _audit(connection, actor, "file.remove", str(record.staff_id), record.filename)
+        return record
 
     def seed_from_file(self, path: Path, *, actor: str = "seed") -> int:
         """One-time import of the legacy staff.json. The database is the roster after this."""

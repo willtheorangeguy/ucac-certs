@@ -196,13 +196,18 @@ casually.
 
 ### Backups
 
-The volume holds the only copy of the roster, the scan history, the reminder log, and the
-audit trail. Fly's scheduled snapshots cover machine loss; they do not cover a bad write,
-because a corrupted database is faithfully snapshotted too. For a copy you control:
+The volume holds the only copy of the roster, the scan history, the reminder log, the audit
+trail, and the uploaded copies of certificates. Fly's scheduled snapshots cover machine
+loss; they do not cover a bad write, because a corrupted database is faithfully snapshotted
+too. For a copy you control:
 
 ```bash
 fly ssh console -C "cat /data/lss.sqlite3" > backup.sqlite3
+fly ssh console -C "tar -cf - -C /data uploads" > uploads.tar
 ```
+
+The uploads directory sits beside the database on the same volume, so both are on one
+snapshot — but a database backup taken on its own leaves the copies behind.
 
 !!! danger
     That file contains staff names, Lifesaving Society member IDs, and email addresses.
@@ -212,7 +217,7 @@ fly ssh console -C "cat /data/lss.sqlite3" > backup.sqlite3
 ## Privacy
 
 The application holds staff personal information under PIPEDA — names, Society member IDs,
-and email addresses. The controls that exist:
+email addresses, and uploaded copies of their certificates. The controls that exist:
 
 - Access is limited to the `MANAGER_EMAILS` allowlist, which is re-checked on every request
   rather than only at sign-in.
@@ -222,7 +227,8 @@ and email addresses. The controls that exist:
   `https`.
 
 There is no automatic retention limit. Scan results accumulate indefinitely, and removed
-staff keep their historical rows so past reports stay reproducible. Deciding how long that
+staff keep their historical rows — and their uploaded copies — so past reports stay
+reproducible. Deciding how long that
 should be kept is a policy question, not a code one.
 
 {{ support() }}

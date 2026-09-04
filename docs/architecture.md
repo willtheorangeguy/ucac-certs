@@ -125,6 +125,7 @@ staff already read. The PDF is portrait letter, sized so the whole overview fits
 |---|---|
 | `settings.py` | Environment parsing and validation. Frozen dataclass; the manager allowlist lives here. |
 | `db.py` | One shared `sqlite3` connection guarded by an `RLock`. |
+| `files.py` | Uploaded copies of certificates: what is accepted, and where the bytes go. |
 | `repository.py` | All SQL. `StaffRepository` owns the roster; `ScanRepository` owns scans, results, notes, and the reminder schedule. |
 | `auth.py` | Magic-link issue and redeem, rate limiting, signed session cookies. |
 | `scans.py` | `verify_member_code` and `verify_red_cross_number` for roster entry, `run_scan`, and `ScanRunner` — the worker thread. |
@@ -171,7 +172,7 @@ second tick.
 
 ### Database schema
 
-Nine tables, created with `CREATE TABLE IF NOT EXISTS` on every startup, plus a short list
+Ten tables, created with `CREATE TABLE IF NOT EXISTS` on every startup, plus a short list
 of columns added to existing tables afterwards. There is no migration system beyond that
 list: `db.migrate` compares `PRAGMA table_info` against `_ADDED_COLUMNS` and issues the
 missing `ALTER TABLE`s, because `CREATE TABLE IF NOT EXISTS` leaves a live database's older
@@ -181,6 +182,7 @@ table untouched and a new column would otherwise never appear in production.
 |---|---|
 | `staff` | The roster of record, including the Red Cross certificate number. Soft-deleted via `removed_at`. |
 | `manual_cert` | Certification dates entered by hand, one per staff member per column. |
+| `certificate_file` | An uploaded copy of a certificate: its own name, kind, size, uploader, and the generated name its bytes are stored under. |
 | `scan` | One row per scan: start, finish, status, who triggered it. |
 | `scan_result` | One row per staff member per column: expiry, status, source award, provisional flag. |
 | `scan_note` | Diagnostics for a scan, keyed by kind: `error`, `name`, `unmapped`, `disagreement`, `redcross`. |
@@ -219,6 +221,26 @@ Manual dates are folded in on **read**, by `repository.effective_cells`, not wri
 a date entered at 9am moves that afternoon's reminder without waiting for a scan, and
 `scan_result` stays a faithful record of what the two verifiable sources actually said.
 
+### Stored copies of certificates
+
+The two verifiable sources answer whether a certification is current. Neither hands back
+the card, so a copy — a scan, or a photograph taken on a phone — is uploaded by hand and
+kept as the evidence behind the row.
+
+The bytes go to a flat directory (`UPLOADS_PATH`, by default `uploads/` beside the
+database) under a generated random name; `certificate_file` holds the rest. Files are kept
+out of SQLite so that one volume backup covers both, and so serving a large PDF does not
+read it through the database connection every request thread shares.
+
+`files.py` decides what may be stored, and it decides from the file's own leading bytes.
+The filename and the browser's content type are treated as claims, not evidence: they are
+kept for display and ignored for everything else, so a script renamed `.pdf` is refused
+rather than stored and later handed back to somebody's browser. The size limit is applied
+while the bytes stream in, since a declared `Content-Length` is the caller's to understate.
+On the way out, a copy is always an attachment with `X-Content-Type-Options: nosniff` — it
+was uploaded by a manager but it is served from the application's own origin, and it is
+not given the chance to run there.
+
 ## Directory layout
 
 Only the paths that matter.
@@ -238,12 +260,13 @@ lss_report/
 └── web/
     ├── app.py         Routes
     ├── server.py      lss-web entry point
-    ├── schema.sql     The nine tables
+    ├── files.py       Upload validation and on-disk storage of certificate copies
+    ├── schema.sql     The ten tables
     └── templates/     Jinja pages
 scripts/
 ├── extract_roster.py  Rebuilds staff.json from a certification form PDF
 └── run-local.ps1      Venv, install, live scan, write report.pdf and report.xlsx
-tests/                 195 tests, no network access
+tests/                 229 tests, no network access
 ```
 
 ## Design decisions

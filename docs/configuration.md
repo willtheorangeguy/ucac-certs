@@ -31,6 +31,7 @@ Names are used verbatim — there is no prefix scheme.
 | `MAIL_FROM` | string | `certifications@example.org` | Envelope sender. Must be an address on a domain verified with Resend. |
 | `BASE_URL` | string | `http://127.0.0.1:8000` | Public origin. Sign-in links are built from it, and an `https` value is what marks the session cookie `Secure`. A trailing slash is stripped. |
 | `DATABASE_PATH` | path | `data/lss.sqlite3` | SQLite file. Parent directories are created on startup. |
+| `UPLOADS_PATH` | path | `uploads/` beside the database | Directory holding uploaded copies of certificates. Created on the first upload. |
 | `SCAN_HOUR` | integer | `6` | Hour, 0–23, at which the Monday scan runs, in `America/Edmonton`. |
 | `REMINDER_HOUR` | integer | `7` | Hour, 0–23, at which the daily reminder pass runs, in `America/Edmonton`. |
 | `DISABLE_SCHEDULER` | flag | unset | Set to `1`, `true`, or `yes` to start the app without the background scheduler. |

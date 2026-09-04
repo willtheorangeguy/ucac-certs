@@ -100,6 +100,12 @@ row after the next scan. On an edit each check runs only if its own field change
 that touches neither reaches no network. Where the Society spells a name differently, the
 roster screen offers to adopt its spelling.
 
+The file button on a row holds scanned or photographed copies of that person's
+certificates — a PDF or an image, up to 10 MB each. An upload is checked by its own leading
+bytes rather than its name, stored on disk beside the database under a generated name, and
+served back only as a download. Copies are evidence for whoever asks to see the card; they
+are never read for certification dates.
+
 The trash can removes a staff member. Removal is a soft delete — past scan results stay so
 old reports remain reproducible, and the member code becomes free again for re-adding.
 
@@ -149,8 +155,9 @@ deploy token scoped to the app.
 ## Privacy
 
 Staff PII under PIPEDA: names, Society member IDs, Red Cross certificate numbers, emails,
-phone numbers. Access is limited to the manager allowlist, every roster change is written
-to an audit trail, and the SQLite volume should be backed up and snapshotted.
+phone numbers, and uploaded copies of their certificates. Access is limited to the manager
+allowlist, every roster change is written to an audit trail, and the SQLite volume — which
+holds the uploads directory too — should be backed up and snapshotted.
 
 ## Command line
 

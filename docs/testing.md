@@ -1,6 +1,6 @@
 # Testing
 
-The suite is 195 tests across 17 files and takes about ten seconds. It makes no network
+The suite is 229 tests across 18 files and takes about ten seconds. It makes no network
 calls — the Society and the Red Cross are each represented by stored HTML fixtures — so it
 is safe to run anywhere, including CI.
 
@@ -11,7 +11,7 @@ is safe to run anywhere, including CI.
 ```
 
 ```text
-195 passed, 2 warnings in 9.32s
+229 passed, 2 warnings in 7.22s
 ```
 
 Configuration lives in `pyproject.toml`: `testpaths` is `tests`, and `addopts` is `-q`, so
@@ -47,7 +47,8 @@ python -m pytest -k "expiry or reminder" -v
 | `test_auth.py` | Token issue and redeem, single use, expiry, rate limiting |
 | `test_notify.py` | Resend delivery, reminder text, deduplication |
 | `test_scheduler.py` | Weekly and daily firing, and that neither can double-fire |
-| `test_web_app.py` | Routes, redirects, roster verification at entry, the edit panel |
+| `test_files.py` | What an upload has to be to be stored, the size limit, and generated names |
+| `test_web_app.py` | Routes, redirects, roster verification at entry, the edit panel, certificate copies |
 | `test_web_render.py` | Every page rendered against stored scan data |
 | `test_security.py` | The properties that must hold before this is exposed to the internet |
 
@@ -56,7 +57,7 @@ python -m pytest -k "expiry or reminder" -v
 `tests/conftest.py` provides two fixtures used almost everywhere:
 
 - `settings` — a `Settings` instance with a throwaway secret, one manager address, and a
-  database path under pytest's `tmp_path`.
+  database path and an uploads directory under pytest's `tmp_path`.
 - `database` — a `Database` built on that path, closed on teardown.
 
 Because `base_url` is `http://testserver`, `Settings.is_local` is true throughout the

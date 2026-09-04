@@ -90,6 +90,12 @@
         <td>{{ member.phone or '' }}</td>
         <td>{{ 'yes' if member.away else '' }}</td>
         <td class="actions">
+          <button type="button" class="icon-button" title="Certificate copies for {{ member.name }}"
+                  aria-label="Certificate copies for {{ member.name }}"
+                  onclick="document.getElementById('files-{{ member.id }}').showModal()">
+            <i class="fa-solid fa-file-circle-plus" aria-hidden="true"></i>
+            {% if documents[member.id] %}<span class="count">{{ documents[member.id]|length }}</span>{% endif %}
+          </button>
           <button type="button" class="icon-button" title="Edit {{ member.name }}"
                   aria-label="Edit {{ member.name }}"
                   onclick="document.getElementById('edit-{{ member.id }}').showModal()">
@@ -126,6 +132,43 @@
 </dialog>
 
 {% for member in staff %}
+<dialog id="files-{{ member.id }}">
+  <h2>Certificate copies &mdash; {{ member.display_name }}</h2>
+  {% if documents[member.id] %}
+  <ul class="file-list">
+    {% for document in documents[member.id] %}
+    <li>
+      <a href="/staff/{{ member.id }}/files/{{ document.id }}">{{ document.filename }}</a>
+      <span class="muted">{{ document.size_label }} &middot; {{ document.uploaded_at[:10] }}</span>
+      <form method="post" action="/staff/{{ member.id }}/files/{{ document.id }}/remove"
+            onsubmit='return confirm("Delete " + {{ document.filename|tojson }} + "? The file itself is deleted.")'>
+        <button type="submit" class="icon-button danger" title="Delete {{ document.filename }}"
+                aria-label="Delete {{ document.filename }}">
+          <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
+        </button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No copies kept for {{ member.display_name }} yet.</p>
+  {% endif %}
+
+  <form method="post" action="/staff/{{ member.id }}/files" enctype="multipart/form-data">
+    <label class="stacked" for="document-{{ member.id }}">Add a copy</label>
+    <input id="document-{{ member.id }}" type="file" name="document" accept="{{ accept }}" required>
+    <p class="muted">
+      A PDF or an image (PNG, JPEG, GIF, WebP or HEIC), up to {{ max_upload_mb }} MB. Copies are
+      kept as evidence behind the roster row; they are not read for certification dates.
+    </p>
+    <div class="dialog-actions">
+      <button type="button" class="danger"
+              onclick="document.getElementById('files-{{ member.id }}').close()">Close</button>
+      <button type="submit">Upload</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="edit-{{ member.id }}">
   <h2>Edit {{ member.display_name }}</h2>
   <form method="post" action="/staff/{{ member.id }}/edit">

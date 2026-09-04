@@ -8,8 +8,11 @@ from datetime import date, datetime
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
+# Starlette's class, not FastAPI's subclass of it: a hand-parsed form yields the
+# former, which is not an instance of the latter.
+from starlette.datastructures import UploadFile
 
 from ..awards import COLUMNS
 from ..excel import build_workbook
@@ -19,6 +22,14 @@ from ..pdf import build_pdf
 from .. import theme
 from .auth import SESSION_COOKIE, Auth
 from .db import Database
+from .files import (
+    ACCEPT_ATTRIBUTE,
+    MAX_BYTES,
+    TOO_LARGE,
+    FileStore,
+    RejectedUpload,
+    clean_filename,
+)
 from .notify import EmailChannel, Message, Reminders
 from .repository import (
     DuplicateMemberCode,
@@ -42,6 +53,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     scan_repo = ScanRepository(database)
     auth = Auth(database, settings)
     runner = ScanRunner(staff_repo, scan_repo)
+    store = FileStore(settings.uploads_path)
     email_channel = EmailChannel(settings)
     reminders = Reminders(database, settings, [email_channel])
     templates = Jinja2Templates(directory=str(TEMPLATES))
@@ -67,6 +79,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.state.staff_repo = staff_repo
     app.state.scan_repo = scan_repo
     app.state.runner = runner
+    app.state.file_store = store
     app.state.reminders = reminders
     app.state.auth = auth
 
@@ -81,7 +94,15 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     def render(request: Request, template: str, **context) -> HTMLResponse:
         return templates.TemplateResponse(
-            request, template, {"columns": COLUMNS, "theme": theme, **context}
+            request,
+            template,
+            {
+                "columns": COLUMNS,
+                "theme": theme,
+                "accept": ACCEPT_ATTRIBUTE,
+                "max_upload_mb": MAX_BYTES // (1024 * 1024),
+                **context,
+            },
         )
 
     # --- authentication ------------------------------------------------
@@ -174,6 +195,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             # The edit panel is server-rendered per row, so its manual dates come
             # down with the page rather than through a second request.
             manual={member.id: staff_repo.manual_certs(member.id) for member in roster},
+            documents={member.id: staff_repo.files(member.id) for member in roster},
             error=error,
         )
 
@@ -281,6 +303,71 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
                 raise ValueError(f"{column.code} manual date must be a real date.") from None
         return dates
 
+    # --- stored copies of certificates ---------------------------------
+    @app.post("/staff/{staff_id}/files")
+    async def staff_file_add(staff_id: int, request: Request, user: str = Depends(current_user)):
+        if staff_repo.get(staff_id) is None:
+            return _staff_error("That staff member is no longer on the roster.")
+        # A declared length is the caller's to understate, so save() counts the bytes
+        # as well; checking it here only spares the disk from spooling an upload that
+        # is already obviously too large. The slack covers the multipart envelope.
+        declared = request.headers.get("content-length", "")
+        if declared.isdigit() and int(declared) > MAX_BYTES + 8192:
+            return _staff_error(TOO_LARGE)
+        form = await request.form()
+        upload = form.get("document")
+        if not isinstance(upload, UploadFile) or not upload.filename:
+            return _staff_error("Choose a file to attach.")
+        # The bytes land on disk first: nothing is recorded for a file that was
+        # refused, and nothing is stored that no row points at.
+        try:
+            stored = store.save(upload.file)
+        except RejectedUpload as exc:
+            return _staff_error(str(exc))
+        try:
+            staff_repo.add_file(
+                staff_id,
+                filename=clean_filename(upload.filename),
+                stored_name=stored.stored_name,
+                content_type=stored.kind.content_type,
+                size_bytes=stored.size,
+                actor=user,
+            )
+        except Exception:
+            store.delete(stored.stored_name)
+            raise
+        return RedirectResponse("/staff", status_code=303)
+
+    @app.get("/staff/{staff_id}/files/{file_id}")
+    def staff_file_download(staff_id: int, file_id: int, user: str = Depends(current_user)):
+        record = staff_repo.file(file_id)
+        # The staff id has to match as well as the file id, so a guessed number
+        # cannot be walked up under some other member's URL.
+        if record is None or record.staff_id != staff_id:
+            raise HTTPException(status_code=404, detail="No such copy.")
+        path = store.path(record.stored_name)
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="That copy is no longer on disk.")
+        return FileResponse(
+            path,
+            media_type=record.content_type,
+            headers={
+                # Always an attachment, and never sniffed: a copy is uploaded by a
+                # manager but served from the application's own origin, so it is not
+                # given the chance to run there.
+                "Content-Disposition": _attachment(record.filename),
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+
+    @app.post("/staff/{staff_id}/files/{file_id}/remove")
+    def staff_file_remove(staff_id: int, file_id: int, user: str = Depends(current_user)):
+        record = staff_repo.file(file_id)
+        if record is not None and record.staff_id == staff_id:
+            staff_repo.remove_file(file_id, actor=user)
+            store.delete(record.stored_name)
+        return RedirectResponse("/staff", status_code=303)
+
     @app.post("/staff/{staff_id}/adopt-name")
     def staff_adopt_name(staff_id: int, user: str = Depends(current_user)):
         staff = staff_repo.get(staff_id)
@@ -292,6 +379,13 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     def staff_remove(staff_id: int, user: str = Depends(current_user)):
         staff_repo.remove(staff_id, actor=user)
         return RedirectResponse("/staff", status_code=303)
+
+    def _attachment(filename: str) -> str:
+        """A Content-Disposition that survives a name with an accent or a quote in it."""
+        from urllib.parse import quote
+
+        ascii_name = filename.encode("ascii", "replace").decode("ascii").replace('"', "'")
+        return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename)}"
 
     def _staff_error(message: str) -> RedirectResponse:
         from urllib.parse import quote

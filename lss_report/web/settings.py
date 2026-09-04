@@ -7,6 +7,7 @@ from pathlib import Path
 from ..config import ConfigurationError
 
 DEFAULT_DATABASE = Path("data/lss.sqlite3")
+DEFAULT_UPLOADS = Path("data/uploads")
 LOGIN_TOKEN_MINUTES = 15
 SESSION_DAYS = 30
 
@@ -37,6 +38,7 @@ def _hour(env: dict[str, str], key: str, default: str) -> int:
 @dataclass(frozen=True)
 class Settings:
     database_path: Path
+    uploads_path: Path
     session_secret: str
     base_url: str
     managers: tuple[str, ...]
@@ -78,8 +80,16 @@ def load_settings(environ: dict[str, str] | None = None) -> Settings:
     if not env.get("RESEND_API_KEY"):
         warnings.append("RESEND_API_KEY is unset; login links will be written to the log instead.")
 
+    # Copies of certificates default to sitting beside the database rather than at a
+    # fixed path, so a deployment that moves its data volume takes them along without
+    # having to remember a second setting.
+    database_path = Path(env.get("DATABASE_PATH", DEFAULT_DATABASE))
+    uploads = env.get("UPLOADS_PATH", "").strip()
+    uploads_path = Path(uploads) if uploads else database_path.parent / DEFAULT_UPLOADS.name
+
     return Settings(
-        database_path=Path(env.get("DATABASE_PATH", DEFAULT_DATABASE)),
+        database_path=database_path,
+        uploads_path=uploads_path,
         session_secret=secret,
         base_url=env.get("BASE_URL", "http://127.0.0.1:8000").rstrip("/"),
         managers=managers,

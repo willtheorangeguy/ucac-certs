@@ -14,6 +14,8 @@ WRITE_ENDPOINTS = [
     ("/staff/1/remove", {}),
     ("/staff/1/adopt-name", {}),
     ("/staff/1/edit", {"name": "Intruder", "member_code": "AAA111"}),
+    ("/staff/1/files", {}),
+    ("/staff/1/files/1/remove", {}),
 ]
 
 

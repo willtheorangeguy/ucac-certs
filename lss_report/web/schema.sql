@@ -38,6 +38,23 @@ CREATE TABLE IF NOT EXISTS manual_cert (
 -- One manual date per staff member per column: saving the edit panel replaces it.
 CREATE UNIQUE INDEX IF NOT EXISTS manual_cert_once ON manual_cert (staff_id, column_code);
 
+-- A scanned or photographed copy of a certificate, kept as evidence behind a roster
+-- row. The bytes live in the uploads directory under a generated name; this table
+-- holds what the manager needs to see -- their own file name, its kind and size --
+-- and who put it there.
+CREATE TABLE IF NOT EXISTS certificate_file (
+    id           INTEGER PRIMARY KEY,
+    staff_id     INTEGER NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+    filename     TEXT NOT NULL,
+    stored_name  TEXT NOT NULL UNIQUE,
+    content_type TEXT NOT NULL,
+    size_bytes   INTEGER NOT NULL,
+    uploaded_by  TEXT NOT NULL,
+    uploaded_at  TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS certificate_file_staff ON certificate_file (staff_id);
+
 CREATE TABLE IF NOT EXISTS scan (
     id           INTEGER PRIMARY KEY,
     started_at   TEXT NOT NULL,

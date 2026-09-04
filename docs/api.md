@@ -106,6 +106,36 @@ the last scan found on the same terms the grid already uses — a purpose-issued
 a provisional credit, and otherwise the later expiry wins — so entering an old date cannot
 hide a current award. It applies immediately, without waiting for the next scan.
 
+### Certificate copies
+
+A scan proves a certification is current; the copy is the evidence behind it, for the
+inspector who asks to see the card. The **file** button on a roster row opens the copies
+kept for that member.
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/staff/{staff_id}/files` | session | Stores one uploaded copy. `multipart/form-data`, field `document`. Always `303` to `/staff`, or to `/staff?error=...` on rejection. |
+| `GET` | `/staff/{staff_id}/files/{file_id}` | session | The stored copy, as an attachment under the name it was uploaded with. |
+| `POST` | `/staff/{staff_id}/files/{file_id}/remove` | session | Forgets the copy and deletes the file itself. |
+
+An upload is identified by its own leading bytes, never by the filename or the content
+type the browser claims, and only a PDF, PNG, JPEG, GIF, WebP or HEIC is stored. The limit
+is 10 MB, checked while the bytes stream in rather than from a declared length:
+
+```text
+A copy must be a PDF or an image (PNG, JPEG, GIF, WebP or HEIC).
+A copy must be 10 MB or smaller.
+Choose a file to attach.
+```
+
+The bytes live in the uploads directory ([`UPLOADS_PATH`](configuration.md), by default an
+`uploads/` directory beside the database) under a generated name; the database holds the
+uploaded name, kind, size and uploader. A download is always served as an attachment with
+`X-Content-Type-Options: nosniff`, so a stored file never runs on the application's origin,
+and the path checks the staff id as well as the file id, so a guessed number cannot be read
+under another member's URL. Removing a staff member is a soft delete and keeps their
+copies; deleting a copy is immediate and permanent.
+
 ### Exports and reporting
 
 | Method | Path | Auth | Description |

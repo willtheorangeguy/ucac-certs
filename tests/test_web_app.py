@@ -6,7 +6,15 @@ from lss_report.web.auth import SESSION_COOKIE, Auth
 from lss_report.web.repository import StaffRepository
 from lss_report.web.scans import Verification
 
-PROTECTED = ["/", "/staff", "/reminders", "/diagnostics", "/export.xlsx", "/export.pdf"]
+PROTECTED = [
+    "/",
+    "/staff",
+    "/reminders",
+    "/diagnostics",
+    "/export.xlsx",
+    "/export.pdf",
+    "/staff/1/files/1",
+]
 
 
 @pytest.fixture
@@ -292,3 +300,69 @@ def test_a_bad_manual_date_leaves_an_edit_entirely_unsaved(signed_in, database, 
     )
     # The email sits above the date fields in the panel; a bad date must not save it.
     assert repo.get(member.id).email is None
+
+
+PDF_BYTES = b"%PDF-1.7\na scanned certificate"
+
+
+def _upload(client, staff_id, name="nlspc.pdf", payload=PDF_BYTES, content_type="application/pdf"):
+    return client.post(
+        f"/staff/{staff_id}/files", files={"document": (name, payload, content_type)}
+    )
+
+
+def test_a_copy_can_be_uploaded_and_downloaded_again(signed_in, database, member, settings):
+    assert _upload(signed_in, member.id).status_code == 303
+
+    stored = StaffRepository(database).files(member.id)
+    assert len(stored) == 1
+    assert stored[0].filename == "nlspc.pdf"
+    assert stored[0].content_type == "application/pdf"
+    assert (settings.uploads_path / stored[0].stored_name).exists()
+
+    download = signed_in.get(f"/staff/{member.id}/files/{stored[0].id}")
+    assert download.status_code == 200
+    assert download.content == PDF_BYTES
+    # Served as a download and never sniffed, so an upload cannot run on this origin.
+    assert download.headers["content-disposition"].startswith("attachment")
+    assert download.headers["x-content-type-options"] == "nosniff"
+
+
+def test_a_file_that_is_not_a_pdf_or_an_image_is_refused(signed_in, database, member, settings):
+    response = _upload(
+        signed_in, member.id, name="payload.pdf", payload=b"<script>alert(1)</script>"
+    )
+    assert response.status_code == 303
+    assert "PDF" in response.headers["location"].replace("%20", " ").replace("+", " ")
+    assert StaffRepository(database).files(member.id) == []
+    assert list(settings.uploads_path.glob("*")) == []
+
+
+def test_a_copy_cannot_be_read_under_another_members_url(signed_in, database, member, monkeypatch):
+    monkeypatch.setattr(
+        "lss_report.web.app.verify_member_code",
+        lambda code, name, **kwargs: Verification(ok=True, society_name="Sam Shore"),
+    )
+    signed_in.post("/staff", data={"name": "Sam Shore", "member_code": "SSH002"})
+    other = [m for m in StaffRepository(database).active() if m.id != member.id][0]
+
+    _upload(signed_in, member.id)
+    document = StaffRepository(database).files(member.id)[0]
+    assert signed_in.get(f"/staff/{other.id}/files/{document.id}").status_code == 404
+
+
+def test_deleting_a_copy_takes_the_file_with_it(signed_in, database, member, settings):
+    _upload(signed_in, member.id)
+    document = StaffRepository(database).files(member.id)[0]
+    path = settings.uploads_path / document.stored_name
+
+    assert signed_in.post(f"/staff/{member.id}/files/{document.id}/remove").status_code == 303
+    assert StaffRepository(database).files(member.id) == []
+    assert not path.exists()
+
+
+def test_the_roster_lists_the_copies_a_member_has(signed_in, member):
+    _upload(signed_in, member.id, name="bronze-cross.pdf")
+    page = signed_in.get("/staff")
+    assert "bronze-cross.pdf" in page.text
+    assert "fa-file-circle-plus" in page.text

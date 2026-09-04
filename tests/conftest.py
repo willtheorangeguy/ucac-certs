@@ -8,6 +8,7 @@ from lss_report.web.settings import Settings
 def settings(tmp_path) -> Settings:
     return Settings(
         database_path=tmp_path / "test.sqlite3",
+        uploads_path=tmp_path / "uploads",
         session_secret="x" * 40,
         base_url="http://testserver",
         managers=("manager@example.org",),
