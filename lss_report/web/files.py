@@ -124,7 +124,19 @@ class FileStore:
         return StoredFile(stored_name=stored_name, kind=kind, size=size)
 
     def path(self, stored_name: str) -> Path:
-        if stored_name != Path(stored_name).name or stored_name in {"", ".", ".."}:
+        """Where a stored name lives, refusing anything that is not one.
+
+        Both separators are rejected on every platform, not just the one this is
+        running on: a backslash is an ordinary character in a POSIX filename, so
+        ``Path().name`` would hand back ``x\\y.pdf`` intact there and the check
+        would quietly hold on Windows only.
+        """
+        if (
+            stored_name in {"", ".", ".."}
+            or "/" in stored_name
+            or "\\" in stored_name
+            or stored_name != Path(stored_name).name
+        ):
             raise ValueError(f"{stored_name!r} is not a stored file name.")
         return self.root / stored_name
 
