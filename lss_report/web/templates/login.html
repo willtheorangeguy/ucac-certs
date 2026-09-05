@@ -20,7 +20,7 @@
   {% endif %}
   <form method="post" action="/verify">
     <label for="code">Sign-in code</label>
-    <input id="code" name="code" required autocomplete="one-time-code" inputmode="numeric"
+    <input id="code" type="text" name="code" required autocomplete="one-time-code" inputmode="numeric"
            pattern="[0-9]{6}" maxlength="6" autofocus>
     <p><button type="submit">Sign in</button></p>
   </form>
