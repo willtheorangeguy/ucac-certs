@@ -81,6 +81,30 @@ def test_adding_staff_verifies_the_member_id_first(signed_in, database, monkeypa
     assert member.society_name == "Robin A Rivers"
 
 
+def test_adding_staff_verifies_and_saves_a_second_member_id(
+    signed_in, database, monkeypatch
+):
+    calls = []
+
+    def fake_verify(code, name, **kwargs):
+        calls.append(code)
+        return Verification(ok=True, society_name="Robin Rivers")
+
+    monkeypatch.setattr("lss_report.web.app.verify_member_code", fake_verify)
+    signed_in.post(
+        "/staff",
+        data={
+            "name": "Robin Rivers",
+            "member_code": "rrv001",
+            "member_code_2": "alt002",
+        },
+    )
+
+    member = StaffRepository(database).active()[0]
+    assert calls == ["RRV001", "ALT002"]
+    assert member.member_code_2 == "ALT002"
+
+
 def test_a_bad_member_id_is_refused_and_not_stored(signed_in, database, monkeypatch):
     monkeypatch.setattr(
         "lss_report.web.app.verify_member_code",

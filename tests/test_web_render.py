@@ -168,6 +168,7 @@ def test_the_staff_page_offers_an_edit_panel_and_a_delete_button(client):
     assert "fa-trash-can" in text
     assert '<dialog id="edit-1">' in text
     assert 'name="red_cross_number"' in text
+    assert 'name="member_code_2"' in text
     assert 'name="manual_CPR-C"' in text
 
 

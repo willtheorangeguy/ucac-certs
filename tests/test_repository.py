@@ -26,6 +26,19 @@ def test_duplicate_active_member_code_is_refused(staff):
         staff.add(name="Someone Else", member_code="rrv001")
 
 
+def test_second_member_code_round_trips_and_is_unique_across_both_boxes(staff):
+    member = staff.add(
+        name="Robin Rivers", member_code="RRV001", member_code_2=" alt002 "
+    )
+    assert member.member_code_2 == "ALT002"
+    assert member.member_codes == ("RRV001", "ALT002")
+
+    with pytest.raises(DuplicateMemberCode):
+        staff.add(name="Someone Else", member_code="ALT002")
+    with pytest.raises(DuplicateMemberCode):
+        staff.add(name="Another Person", member_code="NEW003", member_code_2="RRV001")
+
+
 def test_removed_member_disappears_from_the_roster_but_can_be_re_added(staff):
     member = staff.add(name="Robin Rivers", member_code="RRV001")
     staff.remove(member.id, actor="manager@example.org")
@@ -154,5 +167,6 @@ def test_a_database_predating_the_red_cross_column_gains_it(tmp_path):
     database = Database(path)
     try:
         assert StaffRepository(database).active()[0].red_cross_number is None
+        assert StaffRepository(database).active()[0].member_code_2 is None
     finally:
         database.close()

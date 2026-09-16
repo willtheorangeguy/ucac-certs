@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS staff (
     name          TEXT NOT NULL,
     society_name  TEXT,
     member_code   TEXT NOT NULL,
+    -- Some staff have certifications split across two Society profiles.
+    member_code_2 TEXT,
     email         TEXT,
     phone         TEXT,
     -- Red Cross certificates are validated by number, not by member, so one number

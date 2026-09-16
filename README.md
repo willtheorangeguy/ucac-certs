@@ -94,12 +94,13 @@ unfamiliar hosts as phishing, and a code gives a link scanner nothing to follow.
 ### Roster
 
 One panel does both jobs. **Add a staff member** opens it empty; the pencil on a row opens it
-filled in. It holds everything about that person: name, LS#, contact details, the away flag,
+filled in. It holds everything about that person: name, up to two LS#s, contact details, the away flag,
 their Red Cross certificate number, and a manual date for each of the six columns.
 
-The LS# is verified against the Society and the certificate number against the Red Cross
+Each LS# is verified against the Society and the certificate number against the Red Cross
 before anything is written, so a typo is caught at entry rather than appearing as an empty
-row after the next scan. On an edit each check runs only if its own field changed, so a save
+row after the next scan. A scan combines awards from both Society profiles into the same
+staff row. On an edit each check runs only if its own field changed, so a save
 that touches neither reaches no network. Where the Society spells a name differently, the
 roster screen offers to adopt its spelling.
 

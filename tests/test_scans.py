@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from lss_report.awards import CPR_C, FIRST_AID
+from lss_report.awards import CPR_C, FIRST_AID, OXYGEN
 from lss_report.models import Certification, MemberRecord
 from lss_report.redcross import RedCrossCertificate
 from lss_report.scraper import UpstreamError
@@ -51,6 +51,23 @@ class FakeRedCross:
         return self.result
 
 
+class SplitSociety:
+    def __init__(self):
+        self.calls = []
+
+    def fetch(self, member):
+        self.calls.append(member.member_code)
+        column = CPR_C if member.member_code == "RRV001" else OXYGEN
+        return MemberRecord(
+            configured_name=member.name,
+            member_code=member.member_code,
+            source_name=member.name,
+            certifications=[
+                Certification(column.label, date(2025, 1, 1), column, date(2027, 1, 1))
+            ],
+        )
+
+
 @pytest.fixture
 def repos(database):
     return StaffRepository(database), ScanRepository(database)
@@ -87,6 +104,21 @@ def test_a_member_with_no_red_cross_number_is_never_looked_up(repos):
     run_scan(staff_repo, scan_repo, triggered_by="test", client=FakeSociety(), red_cross=validator)
 
     assert validator.calls == []
+
+
+def test_both_society_profiles_are_scanned_into_one_staff_row(database, repos):
+    staff_repo, scan_repo = repos
+    staff_repo.add(
+        name="Robin Rivers", member_code="RRV001", member_code_2="ALT002"
+    )
+    society = SplitSociety()
+
+    run_scan(staff_repo, scan_repo, triggered_by="test", client=society)
+
+    assert society.calls == ["RRV001", "ALT002"]
+    cells = _cells(database, scan_repo.latest_complete_id())
+    assert cells["CPR-C"]["expiry_date"] == "2027-01-01"
+    assert cells["O2"]["expiry_date"] == "2027-01-01"
 
 
 def test_a_red_cross_outage_is_a_note_rather_than_a_failed_scan(database, repos):

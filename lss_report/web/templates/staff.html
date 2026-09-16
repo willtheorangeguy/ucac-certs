@@ -16,6 +16,11 @@
              value="{{ member.member_code if member else '' }}" required>
     </div>
     <div>
+      <label for="code-2-{{ key }}">Second LS# / Member ID</label>
+      <input id="code-2-{{ key }}" type="text" name="member_code_2"
+             value="{{ member.member_code_2 or '' if member else '' }}">
+    </div>
+    <div>
       <label for="rc-{{ key }}">Red Cross certificate #</label>
       <input id="rc-{{ key }}" type="text" name="red_cross_number" inputmode="numeric"
              value="{{ member.red_cross_number or '' if member else '' }}">
@@ -59,8 +64,8 @@
     <i class="fa-solid fa-user-plus" aria-hidden="true"></i> Add a staff member
   </button>
   <p class="muted">
-    The LS# is checked against the Society, and a Red Cross certificate number against the
-    Red Cross, before the row is saved.
+    Each LS# is checked against the Society, and a Red Cross certificate number against the
+    Red Cross, before the row is saved. Leave the second LS# blank when it is not needed.
   </p>
 </div>
 
@@ -84,7 +89,10 @@
             </form>
           {% elif member.society_name %}✓{% endif %}
         </td>
-        <td>{{ member.member_code }}</td>
+        <td>
+          {{ member.member_code }}
+          {% if member.member_code_2 %}<br>{{ member.member_code_2 }}{% endif %}
+        </td>
         <td>{{ member.red_cross_number or '' }}</td>
         <td>{{ member.email or '' }}</td>
         <td>{{ member.phone or '' }}</td>

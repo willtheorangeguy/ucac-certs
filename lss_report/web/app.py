@@ -225,12 +225,17 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
         form = await request.form()
         name = " ".join(str(form.get("name", "")).split())
         code = str(form.get("member_code", "")).strip().upper()
+        code_2 = str(form.get("member_code_2", "")).strip().upper() or None
         red_cross = str(form.get("red_cross_number", "")).strip() or None
 
         if not name:
             return _staff_error("A name is required.")
         if not code.isalnum():
             return _staff_error("Member ID must be letters and digits only.")
+        if code_2 and not code_2.isalnum():
+            return _staff_error("The second Member ID must be letters and digits only.")
+        if code_2 == code:
+            return _staff_error("The two Member IDs must be different.")
         if red_cross and not red_cross.isdigit():
             return _staff_error("A Red Cross certificate number must be digits only.")
         try:
@@ -243,6 +248,10 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
         result = verify_member_code(code, name)
         if not result.ok:
             return _staff_error(f"{code}: {result.error}")
+        if code_2:
+            second_result = verify_member_code(code_2, name)
+            if not second_result.ok:
+                return _staff_error(f"{code_2}: {second_result.error}")
         if red_cross:
             certificate = verify_red_cross_number(red_cross, name)
             if not certificate.ok:
@@ -251,6 +260,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             member = staff_repo.add(
                 name=name,
                 member_code=code,
+                member_code_2=code_2,
                 society_name=result.society_name,
                 email=str(form.get("email", "")).strip() or None,
                 phone=str(form.get("phone", "")).strip() or None,
@@ -272,10 +282,15 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
         form = await request.form()
         name = " ".join(str(form.get("name", "")).split()) or member.name
         code = str(form.get("member_code", "")).strip().upper() or member.member_code
+        code_2 = str(form.get("member_code_2", "")).strip().upper() or None
         red_cross = str(form.get("red_cross_number", "")).strip() or None
 
         if not code.isalnum():
             return _staff_error("Member ID must be letters and digits only.")
+        if code_2 and not code_2.isalnum():
+            return _staff_error("The second Member ID must be letters and digits only.")
+        if code_2 == code:
+            return _staff_error("The two Member IDs must be different.")
         if red_cross and not red_cross.isdigit():
             return _staff_error("A Red Cross certificate number must be digits only.")
         # Everything is validated before anything is written, so a bad date at the
@@ -291,6 +306,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             "phone": str(form.get("phone", "")).strip() or None,
             "away": int(bool(form.get("away"))),
             "red_cross_number": red_cross,
+            "member_code_2": code_2,
         }
         # Only re-verify what actually changed: each check is a live request to an
         # outside service, and saving a phone number should not cost two lookups.
@@ -300,6 +316,10 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
                 return _staff_error(f"{code}: {result.error}")
             changes["member_code"] = code
             changes["society_name"] = result.society_name
+        if code_2 and code_2 != member.member_code_2:
+            second_result = verify_member_code(code_2, name)
+            if not second_result.ok:
+                return _staff_error(f"{code_2}: {second_result.error}")
         if red_cross and red_cross != member.red_cross_number:
             certificate = verify_red_cross_number(red_cross, name)
             if not certificate.ok:

@@ -48,6 +48,8 @@ class MemberRecord:
     # A Red Cross lookup that failed. It is a warning rather than an error: the
     # Society awards still stand, only the Red Cross first aid record is missing.
     red_cross_warning: str | None = None
+    # A second Society profile may fail while the first still supplies usable awards.
+    lookup_warning: str | None = None
 
     @property
     def display_name(self) -> str:

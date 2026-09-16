@@ -30,6 +30,7 @@ def initialise(connection: sqlite3.Connection) -> None:
 # added here as well as in schema.sql.
 _ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
     ("staff", "red_cross_number", "TEXT"),
+    ("staff", "member_code_2", "TEXT"),
 )
 
 

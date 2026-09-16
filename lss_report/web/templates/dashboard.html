@@ -66,7 +66,10 @@
               </td>
             {% endfor %}
           {% endif %}
-          <td class="cert">{{ row.staff.member_code }}</td>
+          <td class="cert">
+            {{ row.staff.member_code }}
+            {% if row.staff.member_code_2 %}<br>{{ row.staff.member_code_2 }}{% endif %}
+          </td>
         </tr>
       {% endfor %}
     </tbody>

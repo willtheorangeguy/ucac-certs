@@ -7,7 +7,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from ..grid import Grid, build_grid
-from ..models import MemberRecord, ReportData
+from ..models import MemberRecord, ReportData, StaffMember
 from ..redcross import RedCrossClient, certifications_from, last_name_for
 from ..scraper import SocietyClient, UpstreamError
 from .repository import ScanRepository, Staff, StaffRepository
@@ -80,6 +80,48 @@ def _add_red_cross(record: MemberRecord, member: Staff, client: RedCrossClient) 
     record.certifications.extend(certifications_from(certificate))
 
 
+def _fetch_society_profiles(member: Staff, client: SocietyClient) -> MemberRecord:
+    """Read every Society profile for one person and combine their awards."""
+    profiles = [
+        client.fetch(
+            StaffMember(name=member.name, member_code=code, away=member.away)
+        )
+        for code in member.member_codes
+    ]
+    usable = [profile for profile in profiles if not profile.error]
+    if not usable:
+        errors = "; ".join(
+            f"{profile.member_code}: {profile.error}" for profile in profiles
+        )
+        return MemberRecord(
+            configured_name=member.name,
+            member_code=member.member_code,
+            error=errors,
+            away=member.away,
+        )
+
+    name_warnings = [
+        f"{profile.member_code}: {profile.name_warning}"
+        for profile in usable
+        if profile.name_warning
+    ]
+    lookup_warnings = [
+        f"{profile.member_code}: {profile.error}"
+        for profile in profiles
+        if profile.error
+    ]
+    return MemberRecord(
+        configured_name=member.name,
+        # Keep the primary code as the stable key used to store this staff row.
+        member_code=member.member_code,
+        source_name=usable[0].source_name,
+        certifications=[cert for profile in usable for cert in profile.certifications],
+        name_warning="; ".join(name_warnings) or None,
+        lookup_warning="; ".join(lookup_warnings) or None,
+        away=member.away,
+    )
+
+
 def run_scan(
     staff_repo: StaffRepository,
     scan_repo: ScanRepository,
@@ -99,7 +141,7 @@ def run_scan(
     try:
         records = []
         for member in roster:
-            record = society.fetch(member.as_member())
+            record = _fetch_society_profiles(member, society)
             if not record.error:
                 _add_red_cross(record, member, validator)
             records.append(record)

@@ -24,6 +24,7 @@ class Staff:
     name: str
     society_name: str | None
     member_code: str
+    member_code_2: str | None
     email: str | None
     phone: str | None
     away: bool
@@ -41,6 +42,10 @@ class Staff:
             red_cross_number=self.red_cross_number,
         )
 
+    @property
+    def member_codes(self) -> tuple[str, ...]:
+        return (self.member_code,) + ((self.member_code_2,) if self.member_code_2 else ())
+
 
 def _staff(row) -> Staff:
     return Staff(
@@ -48,6 +53,7 @@ def _staff(row) -> Staff:
         name=row["name"],
         society_name=row["society_name"],
         member_code=row["member_code"],
+        member_code_2=row["member_code_2"],
         email=row["email"],
         phone=row["phone"],
         away=bool(row["away"]),
@@ -113,6 +119,7 @@ class StaffRepository:
         *,
         name: str,
         member_code: str,
+        member_code_2: str | None = None,
         society_name: str | None = None,
         email: str | None = None,
         phone: str | None = None,
@@ -121,20 +128,18 @@ class StaffRepository:
         actor: str = "system",
     ) -> Staff:
         member_code = member_code.strip().upper()
+        member_code_2 = member_code_2.strip().upper() if member_code_2 else None
         name = " ".join(name.split())
-        existing = self.db.query_one(
-            "SELECT id FROM staff WHERE member_code = ? AND removed_at IS NULL", (member_code,)
-        )
-        if existing:
-            raise DuplicateMemberCode(f"{member_code} is already on the roster.")
+        self._ensure_codes_available(member_code, member_code_2)
         with self.db.write() as connection:
             cursor = connection.execute(
-                "INSERT INTO staff (name, society_name, member_code, email, phone,"
-                " red_cross_number, away, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO staff (name, society_name, member_code, member_code_2, email, phone,"
+                " red_cross_number, away, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     name,
                     society_name,
                     member_code,
+                    member_code_2,
                     email or None,
                     phone or None,
                     red_cross_number or None,
@@ -151,6 +156,7 @@ class StaffRepository:
             "name",
             "society_name",
             "member_code",
+            "member_code_2",
             "email",
             "phone",
             "away",
@@ -161,12 +167,19 @@ class StaffRepository:
             return self.get(staff_id)
         if "member_code" in changes:
             changes["member_code"] = changes["member_code"].strip().upper()
-            clash = self.db.query_one(
-                "SELECT id FROM staff WHERE member_code = ? AND removed_at IS NULL AND id != ?",
-                (changes["member_code"], staff_id),
+        if "member_code_2" in changes:
+            changes["member_code_2"] = (
+                changes["member_code_2"].strip().upper() if changes["member_code_2"] else None
             )
-            if clash:
-                raise DuplicateMemberCode(f"{changes['member_code']} is already on the roster.")
+        if "member_code" in changes or "member_code_2" in changes:
+            current = self.get(staff_id)
+            if current is None:
+                return None
+            self._ensure_codes_available(
+                changes.get("member_code", current.member_code),
+                changes.get("member_code_2", current.member_code_2),
+                exclude_staff_id=staff_id,
+            )
         assignments = ", ".join(f"{key} = ?" for key in changes)
         with self.db.write() as connection:
             connection.execute(
@@ -175,6 +188,28 @@ class StaffRepository:
             )
             _audit(connection, actor, "staff.update", str(staff_id), json.dumps(changes))
         return self.get(staff_id)
+
+    def _ensure_codes_available(
+        self,
+        member_code: str,
+        member_code_2: str | None,
+        *,
+        exclude_staff_id: int | None = None,
+    ) -> None:
+        codes = (member_code,) + ((member_code_2,) if member_code_2 else ())
+        if len(set(codes)) != len(codes):
+            raise DuplicateMemberCode("The two Member IDs must be different.")
+        for code in codes:
+            parameters: tuple = (code, code)
+            sql = (
+                "SELECT id FROM staff WHERE removed_at IS NULL"
+                " AND (member_code = ? OR member_code_2 = ?)"
+            )
+            if exclude_staff_id is not None:
+                sql += " AND id != ?"
+                parameters += (exclude_staff_id,)
+            if self.db.query_one(sql, parameters):
+                raise DuplicateMemberCode(f"{code} is already on the roster.")
 
     def remove(self, staff_id: int, *, actor: str) -> None:
         """Soft delete. Historical scan results stay so past reports remain reproducible."""
@@ -398,6 +433,11 @@ class ScanRepository:
                     connection.execute(
                         "INSERT INTO scan_note (scan_id, kind, detail) VALUES (?, 'redcross', ?)",
                         (scan_id, f"{row.name} ({row.member_code}): {row.red_cross_warning}"),
+                    )
+                if row.lookup_warning:
+                    connection.execute(
+                        "INSERT INTO scan_note (scan_id, kind, detail) VALUES (?, 'lookup', ?)",
+                        (scan_id, f"{row.name}: {row.lookup_warning}"),
                     )
                 for cell in row.cells:
                     connection.execute(
