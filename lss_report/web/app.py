@@ -15,10 +15,10 @@ from fastapi.templating import Jinja2Templates
 from starlette.datastructures import UploadFile
 
 from ..awards import COLUMNS
-from ..excel import build_workbook
+from ..excel import build_first_aiders_workbook, build_workbook
 from ..grid import Grid
 from ..models import CellStatus
-from ..pdf import build_pdf
+from ..pdf import build_first_aiders_pdf, build_pdf
 from .. import theme
 from .auth import PENDING_COOKIE, SESSION_COOKIE, Auth
 from .db import Database
@@ -461,16 +461,28 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     def export_pdf(user: str = Depends(current_user)):
         return _download(build_pdf, "pdf", _grid())
 
-    def _download(builder, suffix: str, grid: Grid) -> Response:
+    @app.get("/workplace-first-aiders.xlsx")
+    def export_first_aiders_excel(user: str = Depends(current_user)):
+        return _download(
+            build_first_aiders_workbook, "xlsx", _grid(), stem="workplace-first-aiders"
+        )
+
+    @app.get("/workplace-first-aiders.pdf")
+    def export_first_aiders_pdf(user: str = Depends(current_user)):
+        return _download(
+            build_first_aiders_pdf, "pdf", _grid(), stem="workplace-first-aiders"
+        )
+
+    def _download(builder, suffix: str, grid: Grid, *, stem: str = "certifications") -> Response:
         media = {
             "pdf": "application/pdf",
             "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         }[suffix]
         with tempfile.TemporaryDirectory(prefix="lss-export-") as directory:
-            path = Path(directory) / f"certifications.{suffix}"
+            path = Path(directory) / f"{stem}.{suffix}"
             builder(grid, path)
             payload = path.read_bytes()
-        filename = f"certifications-{grid.as_of.isoformat()}.{suffix}"
+        filename = f"{stem}-{grid.as_of.isoformat()}.{suffix}"
         return Response(
             payload,
             media_type=media,

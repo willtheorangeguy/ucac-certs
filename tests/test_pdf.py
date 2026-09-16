@@ -4,7 +4,7 @@ from pathlib import Path
 from lss_report.awards import NATIONAL_LIFEGUARD, OXYGEN
 from lss_report.grid import build_grid
 from lss_report.models import Certification, MemberRecord, ReportData
-from lss_report.pdf import build_pdf
+from lss_report.pdf import build_first_aiders_pdf, build_pdf
 
 
 def _grid(*records: MemberRecord):
@@ -45,4 +45,13 @@ def test_pdf_renders_the_away_section(tmp_path: Path):
     )
     output = tmp_path / "away.pdf"
     build_pdf(grid, output)
+    assert output.read_bytes().startswith(b"%PDF-")
+
+
+def test_workplace_first_aiders_pdf_is_generated(tmp_path: Path):
+    output = tmp_path / "first-aiders.pdf"
+    build_first_aiders_pdf(
+        _grid(MemberRecord(configured_name="Example Staff Member", member_code="ABC123")),
+        output,
+    )
     assert output.read_bytes().startswith(b"%PDF-")

@@ -133,6 +133,24 @@ def test_pdf_export_downloads(client):
     assert response.content.startswith(b"%PDF-")
 
 
+def test_workplace_first_aiders_exports_download(client):
+    excel = client.get("/workplace-first-aiders.xlsx")
+    pdf = client.get("/workplace-first-aiders.pdf")
+
+    assert excel.status_code == 200
+    assert excel.content[:2] == b"PK"
+    assert "workplace-first-aiders-" in excel.headers["content-disposition"]
+    assert pdf.status_code == 200
+    assert pdf.content.startswith(b"%PDF-")
+    assert "workplace-first-aiders-" in pdf.headers["content-disposition"]
+
+
+def test_dashboard_links_both_workplace_first_aiders_formats(client):
+    text = client.get("/").text
+    assert 'href="/workplace-first-aiders.xlsx"' in text
+    assert 'href="/workplace-first-aiders.pdf"' in text
+
+
 def test_a_manual_date_fills_a_cell_the_scan_left_empty(client, populated):
     # Robin has no first aid award, so the cell is grey until one is entered by hand.
     StaffRepository(populated).set_manual_cert(1, "FA", TODAY, actor="test")

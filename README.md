@@ -2,7 +2,9 @@
 
 This project checks authorized staff records through the Lifesaving Society Alberta and
 Northwest Territories verification page and produces a certification grid — one row per
-staff member, one column per award type — as an Excel workbook and a PDF.
+staff member, one column per award type — as an Excel workbook and a PDF. It also produces
+a workplace first aiders PDF and workbook containing only names, Standard First Aid
+expiries, and CPR-C expiries.
 
 **Documentation: [williamvdg.me/ucac-certs](https://williamvdg.me/ucac-certs/)**
 

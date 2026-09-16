@@ -4,8 +4,8 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 from lss_report import theme
-from lss_report.awards import COLUMNS, NATIONAL_LIFEGUARD, OXYGEN, SWIM_INSTRUCTOR
-from lss_report.excel import HEADINGS, build_workbook
+from lss_report.awards import COLUMNS, CPR_C, FIRST_AID, NATIONAL_LIFEGUARD, OXYGEN, SWIM_INSTRUCTOR
+from lss_report.excel import HEADINGS, build_first_aiders_workbook, build_workbook
 from lss_report.grid import build_grid
 from lss_report.models import Certification, MemberRecord, ReportData
 
@@ -91,3 +91,32 @@ def test_diagnostics_sheet_lists_unmapped_awards(tmp_path: Path):
     sheet = _workbook(tmp_path, record)["Diagnostics"]
     rows = [tuple(cell.value for cell in row) for row in sheet.iter_rows()]
     assert ("Unmapped award", "Wilderness Guide Level 4") in rows
+
+
+def test_workplace_first_aiders_workbook_only_lists_the_two_requested_expiries(
+    tmp_path: Path,
+):
+    record = MemberRecord(
+        configured_name="Example Staff Member",
+        member_code="ABC123",
+        certifications=[
+            Certification("Standard First Aid", date(2025, 1, 1), FIRST_AID, date(2027, 1, 1)),
+            Certification("CPR Level C", date(2025, 6, 1), CPR_C, date(2026, 6, 1)),
+            Certification("O2 Administration", date(2025, 2, 1), OXYGEN, date(2027, 2, 1)),
+        ],
+    )
+    output = tmp_path / "first-aiders.xlsx"
+    grid = build_grid(ReportData(generated_at=AS_OF, records=[record]))
+    build_first_aiders_workbook(grid, output)
+
+    workbook = load_workbook(output)
+    sheet = workbook["Workplace First Aiders"]
+    assert [sheet.cell(row=4, column=index).value for index in range(1, 4)] == [
+        "Name",
+        "Standard First Aid expiry",
+        "CPR-C expiry",
+    ]
+    assert sheet.cell(row=5, column=1).value == "Example Staff Member"
+    assert sheet.cell(row=5, column=2).value == datetime(2027, 1, 1)
+    assert sheet.cell(row=5, column=3).value == datetime(2026, 6, 1)
+    assert sheet.max_column == 3

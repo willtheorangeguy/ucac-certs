@@ -20,7 +20,7 @@ from reportlab.platypus import (
 )
 
 from . import theme
-from .awards import COLUMNS
+from .awards import COLUMNS, CPR_C, FIRST_AID
 from .grid import EXPIRY_WARNING_DAYS, Grid
 
 
@@ -196,6 +196,102 @@ def build_pdf(grid: Grid, output_path: Path) -> None:
         topMargin=0.35 * inch,
         bottomMargin=0.35 * inch,
         title="Lifesaving Society Certification Report",
+        author="Automated Certification Report",
+    )
+    document.build(story)
+
+
+def _first_aiders_table(grid: Grid, font: str, bold_font: str, styles) -> Table:
+    columns = (FIRST_AID, CPR_C)
+    rows: list[list] = [["Name", "Standard First Aid expiry", "CPR-C expiry"]]
+    commands = [
+        ("FONTNAME", (0, 0), (-1, -1), font),
+        ("FONTNAME", (0, 0), (-1, 0), bold_font),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(f"#{theme.HEADER}")),
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#AEAAAA")),
+        ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 4),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    ]
+
+    seen_away = False
+    for row in grid.rows:
+        if row.away and not seen_away:
+            seen_away = True
+            index = len(rows)
+            rows.append(["Away", "", ""])
+            commands.extend(
+                [
+                    ("SPAN", (0, index), (-1, index)),
+                    ("BACKGROUND", (0, index), (-1, index), colors.HexColor(f"#{theme.HEADER}")),
+                    ("FONTNAME", (0, index), (-1, index), bold_font),
+                ]
+            )
+
+        index = len(rows)
+        line: list = [Paragraph(escape(row.name), styles["Body"])]
+        if row.error:
+            line.extend([Paragraph(escape(row.error), styles["Body"]), ""])
+            commands.extend(
+                [
+                    ("SPAN", (1, index), (2, index)),
+                    ("BACKGROUND", (1, index), (2, index), colors.HexColor(f"#{theme.ERROR}")),
+                ]
+            )
+        else:
+            cells_by_code = {cell.column.code: cell for cell in row.cells}
+            for offset, column in enumerate(columns, start=1):
+                cell = cells_by_code[column.code]
+                line.append(cell.expiry_date.isoformat() if cell.expiry_date else "")
+                fill = theme.STATUS_FILL[cell.status]
+                if fill:
+                    commands.extend(
+                        [
+                            ("BACKGROUND", (offset, index), (offset, index), colors.HexColor(f"#{fill}")),
+                            (
+                                "TEXTCOLOR",
+                                (offset, index),
+                                (offset, index),
+                                colors.HexColor(f"#{theme.STATUS_TEXT[cell.status]}"),
+                            ),
+                        ]
+                    )
+        rows.append(line)
+
+    table = Table(rows, colWidths=[3.1 * inch, 2.0 * inch, 1.7 * inch], repeatRows=1)
+    table.setStyle(TableStyle(commands))
+    return table
+
+
+def build_first_aiders_pdf(grid: Grid, output_path: Path) -> None:
+    """Build the posting-friendly list of workplace first aid and CPR-C expiries."""
+    font, bold_font = _register_fonts()
+    styles = _styles(font, bold_font)
+    legend = (
+        f"<font backColor='#{theme.EXPIRED}'>&nbsp; Expired &nbsp;</font> &nbsp; "
+        f"<font backColor='#{theme.EXPIRING}'>&nbsp; Expires within {EXPIRY_WARNING_DAYS} days &nbsp;</font> &nbsp; "
+        f"<font backColor='#{theme.MISSING}' color='#FFFFFF'>&nbsp; No award on record &nbsp;</font>"
+    )
+    story = [
+        Paragraph("UCalgary Aquatic Center Workplace First Aiders", styles["Title"]),
+        Paragraph(f"Generated {grid.as_of.isoformat()}", styles["Body"]),
+        Paragraph(legend, styles["Body"]),
+        Spacer(1, 0.1 * inch),
+        _first_aiders_table(grid, font, bold_font, styles),
+    ]
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    document = SimpleDocTemplate(
+        str(output_path),
+        pagesize=letter,
+        leftMargin=0.55 * inch,
+        rightMargin=0.55 * inch,
+        topMargin=0.35 * inch,
+        bottomMargin=0.35 * inch,
+        title="Workplace First Aiders",
         author="Automated Certification Report",
     )
     document.build(story)

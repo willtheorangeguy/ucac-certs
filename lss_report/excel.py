@@ -8,7 +8,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
 from . import theme
-from .awards import COLUMNS
+from .awards import COLUMNS, CPR_C, FIRST_AID
 from .grid import EXPIRY_WARNING_DAYS, Grid, MemberRow
 from .models import CellStatus
 
@@ -16,6 +16,7 @@ DATE_FORMAT = "yyyy-mm-dd"
 HEADINGS = ["Names:", *(column.code for column in COLUMNS), "LS#"]
 _THIN = Side(style="thin", color="AEAAAA")
 _BORDER = Border(left=_THIN, right=_THIN, top=_THIN, bottom=_THIN)
+FIRST_AIDER_COLUMNS = (FIRST_AID, CPR_C)
 
 
 def _fill(hex_color: str) -> PatternFill:
@@ -137,5 +138,64 @@ def build_workbook(grid: Grid, output_path: Path) -> None:
 
     _write_diagnostics(workbook.create_sheet("Diagnostics"), grid)
 
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    workbook.save(output_path)
+
+
+def build_first_aiders_workbook(grid: Grid, output_path: Path) -> None:
+    """Build the posting-friendly list of workplace first aid and CPR-C expiries."""
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Workplace First Aiders"
+    sheet["A1"] = "UCalgary Aquatic Center Workplace First Aiders"
+    sheet["A1"].font = Font(bold=True, size=14)
+    sheet["A2"] = f"Generated {grid.as_of.isoformat()}"
+
+    header_row = 4
+    headings = ["Name", "Standard First Aid expiry", "CPR-C expiry"]
+    for index, heading in enumerate(headings, start=1):
+        cell = sheet.cell(row=header_row, column=index, value=heading)
+        cell.font = Font(bold=True)
+        cell.fill = _fill(theme.HEADER)
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = _BORDER
+
+    row_index = header_row + 1
+    seen_away = False
+    for row in grid.rows:
+        if row.away and not seen_away:
+            seen_away = True
+            marker = sheet.cell(row=row_index, column=1, value="Away")
+            marker.font = Font(bold=True)
+            marker.fill = _fill(theme.HEADER)
+            row_index += 1
+
+        name = sheet.cell(row=row_index, column=1, value=row.name)
+        name.border = _BORDER
+        cells_by_code = {cell.column.code: cell for cell in row.cells}
+        for offset, column in enumerate(FIRST_AIDER_COLUMNS, start=2):
+            source = cells_by_code[column.code]
+            target = sheet.cell(row=row_index, column=offset)
+            if source.expiry_date is not None:
+                target.value = source.expiry_date
+                target.number_format = DATE_FORMAT
+            fill = theme.STATUS_FILL[source.status]
+            if fill:
+                target.fill = _fill(fill)
+            target.font = Font(color=theme.STATUS_TEXT[source.status])
+            target.alignment = Alignment(horizontal="center")
+            target.border = _BORDER
+        if row.error:
+            for column_index in (2, 3):
+                sheet.cell(row=row_index, column=column_index).fill = _fill(theme.ERROR)
+            sheet.cell(row=row_index, column=2).value = row.error
+            sheet.merge_cells(start_row=row_index, start_column=2, end_row=row_index, end_column=3)
+        row_index += 1
+
+    sheet.freeze_panes = "B5"
+    sheet.auto_filter.ref = f"A{header_row}:C{row_index - 1}"
+    sheet.column_dimensions["A"].width = 30
+    sheet.column_dimensions["B"].width = 25
+    sheet.column_dimensions["C"].width = 18
     output_path.parent.mkdir(parents=True, exist_ok=True)
     workbook.save(output_path)

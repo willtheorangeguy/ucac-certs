@@ -143,12 +143,15 @@ copies; deleting a copy is immediate and permanent.
 |---|---|---|---|
 | `GET` | `/export.xlsx` | session | The grid as an Excel workbook, plus a Diagnostics sheet. |
 | `GET` | `/export.pdf` | session | The grid as a single-page portrait PDF. |
+| `GET` | `/workplace-first-aiders.xlsx` | session | Workplace first aiders with only name, Standard First Aid expiry, and CPR-C expiry. |
+| `GET` | `/workplace-first-aiders.pdf` | session | The same workplace first aiders list as a portrait PDF. |
 | `GET` | `/diagnostics` | session | Stored notes from the latest scan. |
 | `GET` | `/reminders` | session | The forward reminder schedule and the sent history. Read-only. |
 
-Both exports are served as attachments named `certifications-YYYY-MM-DD.xlsx` or `.pdf`,
-dated from the scan rather than from the moment of download. Both return `404` before any
-scan has completed:
+The full-grid attachments are named `certifications-YYYY-MM-DD.xlsx` or `.pdf`; the companion
+attachments are named `workplace-first-aiders-YYYY-MM-DD.xlsx` or `.pdf`. Dates come from
+the scan rather than the moment of download. All four return `404` before any scan has
+completed:
 
 ```json
 {"detail": "No completed scan yet."}

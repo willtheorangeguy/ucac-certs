@@ -13,6 +13,8 @@ PROTECTED = [
     "/diagnostics",
     "/export.xlsx",
     "/export.pdf",
+    "/workplace-first-aiders.xlsx",
+    "/workplace-first-aiders.pdf",
     "/staff/1/files/1",
 ]
 
