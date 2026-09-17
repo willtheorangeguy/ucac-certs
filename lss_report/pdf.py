@@ -11,7 +11,7 @@ from reportlab.lib.units import inch
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
-    KeepTogether,
+    KeepInFrame,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -50,9 +50,6 @@ def _styles(font: str, bold_font: str) -> dict[str, ParagraphStyle]:
             spaceAfter=2,
         ),
         "Body": ParagraphStyle("Body", parent=base["BodyText"], fontName=font, fontSize=7, leading=9, spaceAfter=1),
-        "Heading": ParagraphStyle(
-            "Heading", parent=base["Heading2"], fontName=bold_font, fontSize=11, leading=14
-        ),
         "Cell": ParagraphStyle(
             "Cell",
             parent=base["BodyText"],
@@ -61,13 +58,6 @@ def _styles(font: str, bold_font: str) -> dict[str, ParagraphStyle]:
             leading=7.5,
             spaceBefore=0,
             spaceAfter=0,
-        ),
-        "Note": ParagraphStyle(
-            "Note",
-            parent=base["BodyText"],
-            fontName=font,
-            fontSize=8,
-            textColor=colors.HexColor("#5B6470"),
         ),
     }
 
@@ -172,21 +162,6 @@ def build_pdf(grid: Grid, output_path: Path) -> None:
         _grid_table(grid, font, bold_font, styles),
     ]
 
-    notes = [
-        *(f"Unmapped award: {title}" for title in grid.unmapped_awards),
-        *(f"Status disagreement: {note}" for note in grid.disagreements),
-    ]
-    if notes:
-        story.append(Spacer(1, 0.2 * inch))
-        story.append(
-            KeepTogether(
-                [
-                    Paragraph("Diagnostics", styles["Heading"]),
-                    *(Paragraph(escape(note), styles["Note"]) for note in notes),
-                ]
-            )
-        )
-
     output_path.parent.mkdir(parents=True, exist_ok=True)
     document = SimpleDocTemplate(
         str(output_path),
@@ -207,15 +182,15 @@ def _first_aiders_table(grid: Grid, font: str, bold_font: str, styles) -> Table:
     commands = [
         ("FONTNAME", (0, 0), (-1, -1), font),
         ("FONTNAME", (0, 0), (-1, 0), bold_font),
-        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("FONTSIZE", (0, 0), (-1, -1), 6.5),
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(f"#{theme.HEADER}")),
         ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#AEAAAA")),
         ("ALIGN", (1, 0), (-1, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 1),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
     ]
 
     seen_away = False
@@ -233,9 +208,9 @@ def _first_aiders_table(grid: Grid, font: str, bold_font: str, styles) -> Table:
             )
 
         index = len(rows)
-        line: list = [Paragraph(escape(row.name), styles["Body"])]
+        line: list = [Paragraph(escape(row.name), styles["Cell"])]
         if row.error:
-            line.extend([Paragraph(escape(row.error), styles["Body"]), ""])
+            line.extend([Paragraph(escape(row.error), styles["Cell"]), ""])
             commands.extend(
                 [
                     ("SPAN", (1, index), (2, index)),
@@ -281,7 +256,15 @@ def build_first_aiders_pdf(grid: Grid, output_path: Path) -> None:
         Paragraph(f"Generated {grid.as_of.isoformat()}", styles["Body"]),
         Paragraph(legend, styles["Body"]),
         Spacer(1, 0.1 * inch),
-        _first_aiders_table(grid, font, bold_font, styles),
+        # Keep the posting chart to one page.  The staff chart establishes the
+        # visual density; this only scales down when an unusually large roster
+        # would otherwise spill onto a second page.
+        KeepInFrame(
+            7.4 * inch,
+            9.55 * inch,
+            [_first_aiders_table(grid, font, bold_font, styles)],
+            mode="shrink",
+        ),
     ]
     output_path.parent.mkdir(parents=True, exist_ok=True)
     document = SimpleDocTemplate(

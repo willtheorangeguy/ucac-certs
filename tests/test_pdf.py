@@ -55,3 +55,18 @@ def test_workplace_first_aiders_pdf_is_generated(tmp_path: Path):
         output,
     )
     assert output.read_bytes().startswith(b"%PDF-")
+
+
+def test_workplace_first_aiders_pdf_keeps_a_large_roster_to_one_page(tmp_path: Path):
+    output = tmp_path / "first-aiders.pdf"
+    build_first_aiders_pdf(
+        _grid(
+            *(
+                MemberRecord(configured_name=f"Staff Member {index}", member_code=f"ID{index:04}")
+                for index in range(50)
+            )
+        ),
+        output,
+    )
+    pdf = output.read_bytes()
+    assert pdf.count(b"/Type /Page") - pdf.count(b"/Type /Pages") == 1
