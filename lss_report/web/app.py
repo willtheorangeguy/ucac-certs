@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 # former, which is not an instance of the latter.
 from starlette.datastructures import UploadFile
 
-from ..awards import COLUMNS
+from ..awards import COLUMNS, CPR_C, FIRST_AID
 from ..excel import build_first_aiders_workbook, build_workbook
 from ..grid import Grid
 from ..models import CellStatus
@@ -226,7 +226,10 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
         name = " ".join(str(form.get("name", "")).split())
         code = str(form.get("member_code", "")).strip().upper()
         code_2 = str(form.get("member_code_2", "")).strip().upper() or None
-        red_cross = str(form.get("red_cross_number", "")).strip() or None
+        red_cross_fa = str(
+            form.get("red_cross_fa_number", form.get("red_cross_number", ""))
+        ).strip() or None
+        red_cross_cpr = str(form.get("red_cross_cpr_number", "")).strip() or None
 
         if not name:
             return _staff_error("A name is required.")
@@ -236,8 +239,10 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             return _staff_error("The second Member ID must be letters and digits only.")
         if code_2 == code:
             return _staff_error("The two Member IDs must be different.")
-        if red_cross and not red_cross.isdigit():
-            return _staff_error("A Red Cross certificate number must be digits only.")
+        if red_cross_fa and not red_cross_fa.isdigit():
+            return _staff_error("The Red Cross Standard First Aid number must be digits only.")
+        if red_cross_cpr and not red_cross_cpr.isdigit():
+            return _staff_error("The Red Cross CPR-C number must be digits only.")
         try:
             manual = _manual_dates(form)
         except ValueError as exc:
@@ -252,10 +257,18 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             second_result = verify_member_code(code_2, name)
             if not second_result.ok:
                 return _staff_error(f"{code_2}: {second_result.error}")
-        if red_cross:
-            certificate = verify_red_cross_number(red_cross, name)
+        if red_cross_fa:
+            certificate = verify_red_cross_number(
+                red_cross_fa, name, expected_column=FIRST_AID
+            )
             if not certificate.ok:
-                return _staff_error(f"Red Cross {red_cross}: {certificate.error}")
+                return _staff_error(f"Red Cross First Aid {red_cross_fa}: {certificate.error}")
+        if red_cross_cpr:
+            certificate = verify_red_cross_number(
+                red_cross_cpr, name, expected_column=CPR_C
+            )
+            if not certificate.ok:
+                return _staff_error(f"Red Cross CPR-C {red_cross_cpr}: {certificate.error}")
         try:
             member = staff_repo.add(
                 name=name,
@@ -264,7 +277,8 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
                 society_name=result.society_name,
                 email=str(form.get("email", "")).strip() or None,
                 phone=str(form.get("phone", "")).strip() or None,
-                red_cross_number=red_cross,
+                red_cross_number=red_cross_fa,
+                red_cross_cpr_number=red_cross_cpr,
                 away=bool(form.get("away")),
                 actor=user,
             )
@@ -283,7 +297,10 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
         name = " ".join(str(form.get("name", "")).split()) or member.name
         code = str(form.get("member_code", "")).strip().upper() or member.member_code
         code_2 = str(form.get("member_code_2", "")).strip().upper() or None
-        red_cross = str(form.get("red_cross_number", "")).strip() or None
+        red_cross_fa = str(
+            form.get("red_cross_fa_number", form.get("red_cross_number", ""))
+        ).strip() or None
+        red_cross_cpr = str(form.get("red_cross_cpr_number", "")).strip() or None
 
         if not code.isalnum():
             return _staff_error("Member ID must be letters and digits only.")
@@ -291,8 +308,10 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             return _staff_error("The second Member ID must be letters and digits only.")
         if code_2 == code:
             return _staff_error("The two Member IDs must be different.")
-        if red_cross and not red_cross.isdigit():
-            return _staff_error("A Red Cross certificate number must be digits only.")
+        if red_cross_fa and not red_cross_fa.isdigit():
+            return _staff_error("The Red Cross Standard First Aid number must be digits only.")
+        if red_cross_cpr and not red_cross_cpr.isdigit():
+            return _staff_error("The Red Cross CPR-C number must be digits only.")
         # Everything is validated before anything is written, so a bad date at the
         # bottom of the panel cannot leave the details above it half-saved.
         try:
@@ -303,13 +322,17 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
         changes = {
             "name": name,
             "email": str(form.get("email", "")).strip() or None,
-            "phone": str(form.get("phone", "")).strip() or None,
             "away": int(bool(form.get("away"))),
-            "red_cross_number": red_cross,
+            "red_cross_number": red_cross_fa,
+            "red_cross_cpr_number": red_cross_cpr,
             "member_code_2": code_2,
         }
+        # Phone is no longer shown in the panel, but the endpoint and repository retain
+        # support for older integrations without clearing an existing stored number.
+        if "phone" in form:
+            changes["phone"] = str(form.get("phone", "")).strip() or None
         # Only re-verify what actually changed: each check is a live request to an
-        # outside service, and saving a phone number should not cost two lookups.
+        # outside service, and saving an email address should not cost any lookups.
         if code != member.member_code:
             result = verify_member_code(code, name)
             if not result.ok:
@@ -320,10 +343,18 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             second_result = verify_member_code(code_2, name)
             if not second_result.ok:
                 return _staff_error(f"{code_2}: {second_result.error}")
-        if red_cross and red_cross != member.red_cross_number:
-            certificate = verify_red_cross_number(red_cross, name)
+        if red_cross_fa and red_cross_fa != member.red_cross_fa_number:
+            certificate = verify_red_cross_number(
+                red_cross_fa, name, expected_column=FIRST_AID
+            )
             if not certificate.ok:
-                return _staff_error(f"Red Cross {red_cross}: {certificate.error}")
+                return _staff_error(f"Red Cross First Aid {red_cross_fa}: {certificate.error}")
+        if red_cross_cpr and red_cross_cpr != member.red_cross_cpr_number:
+            certificate = verify_red_cross_number(
+                red_cross_cpr, name, expected_column=CPR_C
+            )
+            if not certificate.ok:
+                return _staff_error(f"Red Cross CPR-C {red_cross_cpr}: {certificate.error}")
 
         try:
             staff_repo.update(staff_id, actor=user, **changes)

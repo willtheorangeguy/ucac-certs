@@ -145,14 +145,14 @@ Questions about why the tool behaves the way it does. Error messages with a fix 
 
 ??? question "Why does adding a staff member take a couple of seconds?"
 
-    The member ID is checked against the Society before the row is saved. A typo is
+    Each member ID is checked against the Society before the row is saved. A typo is
     rejected immediately with `Member ID was not found.` rather than surfacing as a blank
     row after the next scan, which is how four bad IDs went unnoticed in an earlier
     version of this tool.
 
-    A Red Cross certificate number is checked the same way, against the holder's last
-    name. Adding a member runs both checks; editing one runs only the checks whose field
-    actually changed, so correcting a phone number is instant.
+    Each Red Cross certificate number is checked the same way, against the holder's last
+    name and the award type for its box. Adding a member runs every required check; editing
+    one runs only the checks whose field actually changed, so correcting an email is instant.
 
 ??? question "What can I upload as a copy of a certificate?"
 
@@ -174,7 +174,7 @@ Questions about why the tool behaves the way it does. Error messages with a fix 
     Deleting a copy is immediate and permanent. Removing a staff member is not: that is a
     soft delete, and their copies stay.
 
-??? question "Why is there a phone field if nothing uses it?"
+??? question "Why does the database still have a phone field if the panel does not?"
 
     An SMS channel was built and then removed. The `phone` and `sms_consent_at` columns
     were left in the schema because dropping a column means a migration against a live

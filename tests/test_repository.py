@@ -119,6 +119,17 @@ def test_red_cross_number_round_trips_through_the_roster(staff):
     assert staff.get(member.id).as_member().red_cross_number == "103575156"
 
 
+def test_separate_red_cross_cpr_number_round_trips_through_the_roster(staff):
+    member = staff.add(
+        name="Robin Rivers",
+        member_code="RRV001",
+        red_cross_number="103575156",
+        red_cross_cpr_number="204686267",
+    )
+    assert member.red_cross_fa_number == "103575156"
+    assert member.red_cross_cpr_number == "204686267"
+
+
 def test_a_member_code_already_on_the_roster_cannot_be_moved_onto_another_row(staff):
     first = staff.add(name="Robin Rivers", member_code="RRV001")
     second = staff.add(name="Sam Summers", member_code="SSM002")
@@ -167,6 +178,7 @@ def test_a_database_predating_the_red_cross_column_gains_it(tmp_path):
     database = Database(path)
     try:
         assert StaffRepository(database).active()[0].red_cross_number is None
+        assert StaffRepository(database).active()[0].red_cross_cpr_number is None
         assert StaffRepository(database).active()[0].member_code_2 is None
     finally:
         database.close()

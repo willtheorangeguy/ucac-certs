@@ -90,8 +90,8 @@ published expiry at face value would silently grant staff a third year. `ISSUER_
 works the expiry back to the course date, and each column then applies its own validity —
 two years for `FA`, one for `CPR-C` — the same arithmetic used for an `Expired On` card.
 
-A failed Red Cross lookup is a **warning**, not an error. The Society awards are unaffected;
-only the first aid cell falls back to whatever the Society has, and the reason lands in
+A failed Red Cross lookup is a **warning**, not an error. Society awards and any other Red
+Cross certificate are unaffected; the corresponding cell falls back to its other sources, and the reason lands in
 Diagnostics under the `redcross` kind. An outage at the Red Cross cannot fail a scan.
 
 ### Row building
@@ -180,7 +180,7 @@ table untouched and a new column would otherwise never appear in production.
 
 | Table | Holds |
 |---|---|
-| `staff` | The roster of record, including the Red Cross certificate number. Soft-deleted via `removed_at`. |
+| `staff` | The roster of record, including separate Red Cross First Aid and CPR-C certificate numbers. Soft-deleted via `removed_at`. |
 | `manual_cert` | Certification dates entered by hand, one per staff member per column. |
 | `certificate_file` | An uploaded copy of a certificate: its own name, kind, size, uploader, and the generated name its bytes are stored under. |
 | `scan` | One row per scan: start, finish, status, who triggered it. |

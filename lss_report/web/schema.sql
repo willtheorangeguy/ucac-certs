@@ -10,10 +10,10 @@ CREATE TABLE IF NOT EXISTS staff (
     member_code_2 TEXT,
     email         TEXT,
     phone         TEXT,
-    -- Red Cross certificates are validated by number, not by member, so one number
-    -- is held per staff member. Added after the first release; db.migrate() adds
-    -- the column to databases created before it.
+    -- Existing values are Standard First Aid certificates. CPR-C may be issued as
+    -- a separate certificate, so it has its own optional number.
     red_cross_number TEXT,
+    red_cross_cpr_number TEXT,
     away          INTEGER NOT NULL DEFAULT 0,
     sms_consent_at TEXT,
     removed_at    TEXT,

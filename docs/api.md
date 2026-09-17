@@ -79,13 +79,14 @@ the same dialog, empty or filled in:
 | `name` | string | yes | Roster spelling. Whitespace is collapsed. |
 | `member_code` | string | yes | Lifesaving Society member ID. Upper-cased; rejected unless alphanumeric. |
 | `member_code_2` | string | no | Second Society member ID for staff whose awards are split across two profiles. Validated like the primary ID; blank clears it. |
-| `red_cross_number` | string | no | Canadian Red Cross certificate number. Digits only. Blank clears it. |
+| `red_cross_cpr_number` | string | no | Canadian Red Cross CPR-C certificate number. Digits only; validated as CPR-C. Blank clears it. |
+| `red_cross_fa_number` | string | no | Canadian Red Cross Standard First Aid certificate number. Digits only; validated as Standard First Aid. Blank clears it. |
 | `email` | string | no | Reminder address. Without one, the member is silently skipped by every reminder. |
-| `phone` | string | no | Stored but unused — no channel reads it. |
+| `phone` | string | no | Legacy API field, stored but unused. It is no longer shown in the staff panel; omitting it preserves the stored value. |
 | `away` | boolean | no | Moves the member into the "Away" section. |
 | `manual_<CODE>` | date | no | An `ISO 8601` certification date entered by hand, one field per column — `manual_FA`, `manual_CPR-C`, and so on. Blank clears the entry. |
 
-On an add, every member ID and the certificate number are verified before anything is
+On an add, every member ID and certificate number is verified before anything is
 written, so the request takes a second or two. On an edit, each check runs only when its
 own field changed, so a save that touches neither reaches no network at all.
 
@@ -97,7 +98,8 @@ A name is required.
 Member ID must be letters and digits only.
 ABC123: Member ID was not found.
 ABC123 is already on the roster.
-A Red Cross certificate number must be digits only.
+The Red Cross CPR-C number must be digits only.
+The Red Cross Standard First Aid number must be digits only.
 Red Cross 999999999: No Red Cross certificate matches that number and last name.
 FA manual date must be a real date.
 ```

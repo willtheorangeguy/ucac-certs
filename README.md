@@ -38,15 +38,15 @@ purpose-issued award.
 
 ### Red Cross first aid
 
-Staff who hold first aid through the Canadian Red Cross have a certificate number on their
-roster entry, entered on the Staff panel. Every scan validates it against the Red Cross's
-own [certificate validator](https://myrc.redcross.ca/en/ValidateCertificate/), which keys
-off the certificate number together with the holder's last name.
+Staff who hold first aid or CPR-C through the Canadian Red Cross have separate certificate
+number boxes on their roster entry. Every scan validates each populated number against the
+Red Cross's own [certificate validator](https://myrc.redcross.ca/en/ValidateCertificate/),
+which keys off the certificate number together with the holder's last name.
 
 The validator publishes only an expiry, three years out from the course. Those three years
 are precisely the ones the Aquatic Centre declines to honour, so the published expiry is
 never used as-is: it is worked back to the course date, and then `FA` expires two years
-after it and `CPR-C` one. A card whose number fails to validate is reported in Diagnostics
+after it and `CPR-C` one. A card whose number or award type fails to validate is reported in Diagnostics
 and leaves the Society's provisional credit in place; a Red Cross outage cannot fail a scan.
 
 ### Dates entered by hand
@@ -96,10 +96,12 @@ unfamiliar hosts as phishing, and a code gives a link scanner nothing to follow.
 ### Roster
 
 One panel does both jobs. **Add a staff member** opens it empty; the pencil on a row opens it
-filled in. It holds everything about that person: name, up to two LS#s, contact details, the away flag,
-their Red Cross certificate number, and a manual date for each of the six columns.
+filled in. Its first row holds name and up to two LS#s; its second holds separate Red Cross
+CPR-C and Standard First Aid certificate numbers plus email. The phone value remains in the
+database for compatibility but is no longer shown. The panel also holds the away flag and a
+manual date for each of the six columns.
 
-Each LS# is verified against the Society and the certificate number against the Red Cross
+Each LS# is verified against the Society and each certificate number against the Red Cross
 before anything is written, so a typo is caught at entry rather than appearing as an empty
 row after the next scan. A scan combines awards from both Society profiles into the same
 staff row. On an edit each check runs only if its own field changed, so a save

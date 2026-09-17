@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from lss_report.awards import CPR_C, FIRST_AID
 from lss_report.web.app import create_app
 from lss_report.web.auth import PENDING_COOKIE, SESSION_COOKIE, Auth
 from lss_report.web.repository import StaffRepository
@@ -214,6 +215,46 @@ def test_a_red_cross_number_is_validated_before_it_is_saved(signed_in, database,
     )
     assert calls == [("103575156", "Robin Rivers")]
     assert StaffRepository(database).get(member.id).red_cross_number == "103575156"
+
+
+def test_separate_red_cross_certificates_are_validated_for_their_boxes(
+    signed_in, database, member, monkeypatch
+):
+    calls = []
+
+    def fake_verify(number, name, **kwargs):
+        calls.append((number, kwargs.get("expected_column")))
+        return Verification(ok=True)
+
+    monkeypatch.setattr("lss_report.web.app.verify_red_cross_number", fake_verify)
+    signed_in.post(
+        f"/staff/{member.id}/edit",
+        data={
+            "name": "Robin Rivers",
+            "member_code": "RRV001",
+            "red_cross_cpr_number": "204686267",
+            "red_cross_fa_number": "103575156",
+        },
+    )
+
+    refreshed = StaffRepository(database).get(member.id)
+    assert calls == [("103575156", FIRST_AID), ("204686267", CPR_C)]
+    assert refreshed.red_cross_fa_number == "103575156"
+    assert refreshed.red_cross_cpr_number == "204686267"
+
+
+def test_panel_save_without_phone_field_preserves_the_stored_phone(
+    signed_in, database, member
+):
+    repo = StaffRepository(database)
+    repo.update(member.id, actor="test", phone="403-555-0100")
+
+    signed_in.post(
+        f"/staff/{member.id}/edit",
+        data={"name": "Robin Rivers", "member_code": "RRV001"},
+    )
+
+    assert repo.get(member.id).phone == "403-555-0100"
 
 
 def test_a_red_cross_number_that_does_not_validate_is_refused(signed_in, database, member, monkeypatch):

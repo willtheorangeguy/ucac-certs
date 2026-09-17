@@ -11,32 +11,31 @@
       <input id="name-{{ key }}" type="text" name="name" value="{{ member.name if member else '' }}" required>
     </div>
     <div>
-      <label for="code-{{ key }}">LS# / Member ID</label>
+      <label for="code-{{ key }}">LS #1 / Member ID</label>
       <input id="code-{{ key }}" type="text" name="member_code"
              value="{{ member.member_code if member else '' }}" required>
     </div>
     <div>
-      <label for="code-2-{{ key }}">Second LS# / Member ID</label>
+      <label for="code-2-{{ key }}">LS #2 / Member ID</label>
       <input id="code-2-{{ key }}" type="text" name="member_code_2"
              value="{{ member.member_code_2 or '' if member else '' }}">
     </div>
     <div>
-      <label for="rc-{{ key }}">Red Cross certificate #</label>
-      <input id="rc-{{ key }}" type="text" name="red_cross_number" inputmode="numeric"
-             value="{{ member.red_cross_number or '' if member else '' }}">
+      <label for="rc-cpr-{{ key }}">Red Cross CPR-C certificate #</label>
+      <input id="rc-cpr-{{ key }}" type="text" name="red_cross_cpr_number" inputmode="numeric"
+             value="{{ member.red_cross_cpr_number or '' if member else '' }}">
+    </div>
+    <div>
+      <label for="rc-fa-{{ key }}">Red Cross Standard First Aid certificate #</label>
+      <input id="rc-fa-{{ key }}" type="text" name="red_cross_fa_number" inputmode="numeric"
+             value="{{ member.red_cross_fa_number or '' if member else '' }}">
     </div>
     <div>
       <label for="email-{{ key }}">Email</label>
       <input id="email-{{ key }}" type="email" name="email" value="{{ member.email or '' if member else '' }}">
     </div>
-    <div>
-      <label for="phone-{{ key }}">Phone</label>
-      <input id="phone-{{ key }}" type="tel" name="phone" value="{{ member.phone or '' if member else '' }}">
-    </div>
-    <div>
-      <label><input type="checkbox" name="away" value="true" {% if member and member.away %}checked{% endif %}> Away </label>
-    </div>
   </div>
+  <p><label><input type="checkbox" name="away" value="true" {% if member and member.away %}checked{% endif %}> Away </label></p>
 
   <p class="muted" style="margin:1.25rem 0 .5rem">
     Certification dates entered by hand, for courses taken through a third party. Enter the
@@ -64,8 +63,8 @@
     <i class="fa-solid fa-user-plus" aria-hidden="true"></i> Add a staff member
   </button>
   <p class="muted">
-    Each LS# is checked against the Society, and a Red Cross certificate number against the
-    Red Cross, before the row is saved. Leave the second LS# blank when it is not needed.
+    Each LS# is checked against the Society, and each Red Cross certificate number against
+    the Red Cross, before the row is saved. Leave optional numbers blank when not needed.
   </p>
 </div>
 
@@ -73,7 +72,8 @@
   <table>
     <thead>
       <tr>
-        <th>Name</th><th>Society name</th><th>LS#</th><th>Red Cross #</th>
+        <th>Name</th><th>Society name</th><th>LS#</th><th>Red Cross CPR-C #</th>
+        <th>Red Cross First Aid #</th>
         <th>Email</th><th>Phone</th><th>Away</th><th></th>
       </tr>
     </thead>
@@ -93,7 +93,8 @@
           {{ member.member_code }}
           {% if member.member_code_2 %}<br>{{ member.member_code_2 }}{% endif %}
         </td>
-        <td>{{ member.red_cross_number or '' }}</td>
+        <td>{{ member.red_cross_cpr_number or '' }}</td>
+        <td>{{ member.red_cross_fa_number or '' }}</td>
         <td>{{ member.email or '' }}</td>
         <td>{{ member.phone or '' }}</td>
         <td>{{ 'yes' if member.away else '' }}</td>

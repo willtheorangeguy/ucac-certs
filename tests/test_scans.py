@@ -9,11 +9,16 @@ from lss_report.models import Certification, MemberRecord
 from lss_report.redcross import RedCrossCertificate
 from lss_report.scraper import UpstreamError
 from lss_report.web.repository import ScanRepository, StaffRepository
-from lss_report.web.scans import run_scan
+from lss_report.web.scans import run_scan, verify_red_cross_number
 
 RED_CROSS = RedCrossCertificate(
     certificate_number="103575156",
     award_name="Standard First Aid CPR/AED Level C (Blended)",
+    expiry_date=date(2027, 10, 14),
+)
+CPR_ONLY = RedCrossCertificate(
+    certificate_number="204686267",
+    award_name="CPR/AED Level C",
     expiry_date=date(2027, 10, 14),
 )
 
@@ -104,6 +109,38 @@ def test_a_member_with_no_red_cross_number_is_never_looked_up(repos):
     run_scan(staff_repo, scan_repo, triggered_by="test", client=FakeSociety(), red_cross=validator)
 
     assert validator.calls == []
+
+
+def test_separate_first_aid_and_cpr_certificates_are_both_scanned(repos):
+    staff_repo, scan_repo = repos
+    staff_repo.add(
+        name="Robin Rivers",
+        member_code="RRV001",
+        red_cross_number="103575156",
+        red_cross_cpr_number="204686267",
+    )
+    validator = FakeRedCross()
+
+    run_scan(
+        staff_repo,
+        scan_repo,
+        triggered_by="test",
+        client=FakeSociety(),
+        red_cross=validator,
+    )
+
+    assert validator.calls == [("Rivers", "103575156"), ("Rivers", "204686267")]
+
+
+def test_red_cross_box_rejects_a_certificate_of_the_wrong_type():
+    assert verify_red_cross_number(
+        "204686267", "Robin Rivers", expected_column=CPR_C, client=FakeRedCross(CPR_ONLY)
+    ).ok
+    result = verify_red_cross_number(
+        "204686267", "Robin Rivers", expected_column=FIRST_AID, client=FakeRedCross(CPR_ONLY)
+    )
+    assert not result.ok
+    assert "Standard First Aid" in result.error
 
 
 def test_both_society_profiles_are_scanned_into_one_staff_row(database, repos):

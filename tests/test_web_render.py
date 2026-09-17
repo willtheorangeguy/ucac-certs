@@ -185,9 +185,24 @@ def test_the_staff_page_offers_an_edit_panel_and_a_delete_button(client):
     assert "fa-pen-to-square" in text
     assert "fa-trash-can" in text
     assert '<dialog id="edit-1">' in text
-    assert 'name="red_cross_number"' in text
+    assert 'name="red_cross_cpr_number"' in text
+    assert 'name="red_cross_fa_number"' in text
     assert 'name="member_code_2"' in text
+    assert 'name="phone"' not in text
     assert 'name="manual_CPR-C"' in text
+
+    # The six top boxes form two rows in this exact order on the three-column grid.
+    ordered_ids = [
+        'id="name-1"',
+        'id="code-1"',
+        'id="code-2-1"',
+        'id="rc-cpr-1"',
+        'id="rc-fa-1"',
+        'id="email-1"',
+    ]
+    assert [text.index(field_id) for field_id in ordered_ids] == sorted(
+        text.index(field_id) for field_id in ordered_ids
+    )
 
 
 def test_the_edit_panel_is_prefilled_with_the_stored_manual_date(client, populated):
@@ -201,6 +216,8 @@ def test_adding_goes_through_the_same_panel_as_editing(client):
     # No inline add form on the page any more — the button opens the dialog.
     assert 'showModal()' in text
     # Both dialogs carry the same fields, the add one empty.
-    assert 'id="rc-add"' in text
+    assert 'id="rc-cpr-add"' in text
+    assert 'id="rc-fa-add"' in text
     assert 'name="manual_FA" value=""' in text
-    assert 'id="rc-1"' in text
+    assert 'id="rc-cpr-1"' in text
+    assert 'id="rc-fa-1"' in text

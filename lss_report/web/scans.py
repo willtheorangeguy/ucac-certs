@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from ..awards import CertColumn
 from ..grid import Grid, build_grid
 from ..models import MemberRecord, ReportData, StaffMember
 from ..redcross import RedCrossClient, certifications_from, last_name_for
@@ -38,7 +39,11 @@ def verify_member_code(member_code: str, name: str, *, client: SocietyClient | N
 
 
 def verify_red_cross_number(
-    certificate_number: str, name: str, *, client: RedCrossClient | None = None
+    certificate_number: str,
+    name: str,
+    *,
+    expected_column: CertColumn | None = None,
+    client: RedCrossClient | None = None,
 ) -> Verification:
     """Check a certificate number against the Red Cross validator at entry time.
 
@@ -56,6 +61,14 @@ def verify_red_cross_number(
             ok=False,
             error="No Red Cross certificate matches that number and last name.",
         )
+    if expected_column and not any(
+        certification.column is expected_column and not certification.provisional
+        for certification in certifications_from(certificate)
+    ):
+        return Verification(
+            ok=False,
+            error=f"That certificate does not include {expected_column.label}.",
+        )
     return Verification(ok=True)
 
 
@@ -65,19 +78,29 @@ def _add_red_cross(record: MemberRecord, member: Staff, client: RedCrossClient) 
     A failed lookup is a warning, not an error: the Society awards are unaffected and
     the first aid cell simply falls back to whatever the Society has.
     """
-    if not member.red_cross_number:
+    numbers = [
+        ("Standard First Aid", member.red_cross_fa_number),
+        ("CPR-C", member.red_cross_cpr_number),
+    ]
+    numbers = [(label, number) for label, number in numbers if number]
+    if not numbers:
         return
-    try:
-        certificate = client.fetch(last_name_for(member.display_name), member.red_cross_number)
-    except UpstreamError as exc:
-        record.red_cross_warning = str(exc)
-        return
-    if certificate is None:
-        record.red_cross_warning = (
-            f"Certificate {member.red_cross_number} did not validate against the Red Cross."
-        )
-        return
-    record.certifications.extend(certifications_from(certificate))
+    warnings = []
+    seen = set()
+    for label, number in numbers:
+        if number in seen:
+            continue
+        seen.add(number)
+        try:
+            certificate = client.fetch(last_name_for(member.display_name), number)
+        except UpstreamError as exc:
+            warnings.append(f"{label} certificate {number}: {exc}")
+            continue
+        if certificate is None:
+            warnings.append(f"{label} certificate {number} did not validate against the Red Cross.")
+            continue
+        record.certifications.extend(certifications_from(certificate))
+    record.red_cross_warning = "; ".join(warnings) or None
 
 
 def _fetch_society_profiles(member: Staff, client: SocietyClient) -> MemberRecord:

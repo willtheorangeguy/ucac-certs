@@ -29,6 +29,12 @@ class Staff:
     phone: str | None
     away: bool
     red_cross_number: str | None = None
+    red_cross_cpr_number: str | None = None
+
+    @property
+    def red_cross_fa_number(self) -> str | None:
+        """The legacy Red Cross column now explicitly represents Standard First Aid."""
+        return self.red_cross_number
 
     @property
     def display_name(self) -> str:
@@ -58,6 +64,7 @@ def _staff(row) -> Staff:
         phone=row["phone"],
         away=bool(row["away"]),
         red_cross_number=row["red_cross_number"],
+        red_cross_cpr_number=row["red_cross_cpr_number"],
     )
 
 
@@ -125,6 +132,7 @@ class StaffRepository:
         phone: str | None = None,
         away: bool = False,
         red_cross_number: str | None = None,
+        red_cross_cpr_number: str | None = None,
         actor: str = "system",
     ) -> Staff:
         member_code = member_code.strip().upper()
@@ -134,7 +142,8 @@ class StaffRepository:
         with self.db.write() as connection:
             cursor = connection.execute(
                 "INSERT INTO staff (name, society_name, member_code, member_code_2, email, phone,"
-                " red_cross_number, away, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " red_cross_number, red_cross_cpr_number, away, created_at)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     name,
                     society_name,
@@ -143,6 +152,7 @@ class StaffRepository:
                     email or None,
                     phone or None,
                     red_cross_number or None,
+                    red_cross_cpr_number or None,
                     int(away),
                     _now(),
                 ),
@@ -161,6 +171,7 @@ class StaffRepository:
             "phone",
             "away",
             "red_cross_number",
+            "red_cross_cpr_number",
         }
         changes = {key: value for key, value in fields.items() if key in allowed}
         if not changes:

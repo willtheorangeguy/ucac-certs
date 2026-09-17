@@ -72,14 +72,14 @@ other install paths are covered in [Installation](installation.md).
         Five wrong guesses in fifteen minutes locks the address out for the rest of that
         window, and so does requesting five codes. Wait it out rather than retrying.
 
-5. On the **Staff** page, select **Add a staff member**. Give a real name and a real
-    Lifesaving Society member ID.
+5. On the **Staff** page, select **Add a staff member**. Give a real name and at least one
+    real Lifesaving Society member ID.
 
-    If they hold first aid through the Canadian Red Cross, put the certificate number in
-    the same panel. Below the details is a date field per column, for a certification
+    If they hold CPR-C or Standard First Aid through the Canadian Red Cross, put each
+    certificate number in its matching box. Below the details is a date field per column, for a certification
     earned through a third party — leave those blank for now.
 
-    Both numbers are checked before the row is saved, so this step takes a second or two.
+    Every supplied number is checked before the row is saved, so this step can take a few seconds.
     A bad member ID is rejected with `Member ID was not found.`, a certificate number that
     does not match the person's last name is rejected too, and nothing is written either
     way. The pencil on the row reopens the same panel to change any of it later.
@@ -93,7 +93,7 @@ other install paths are covered in [Installation](installation.md).
 ## What just happened
 
 The scan fetched each roster member's award history from the Society — and, for anyone
-with a certificate number on file, their Red Cross certificate — mapped every award title
+with certificate numbers on file, their Red Cross certificates — mapped every award title
 onto one of the six tracked columns, and computed an expiry date as the certification date
 plus that column's validity period. Neither source publishes an expiry this tool can use as
 printed, so this computation is the whole point of it.
