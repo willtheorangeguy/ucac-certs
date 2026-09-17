@@ -11,22 +11,22 @@
       <input id="name-{{ key }}" type="text" name="name" value="{{ member.name if member else '' }}" required>
     </div>
     <div>
-      <label for="code-{{ key }}">LS #1 / Member ID</label>
+      <label for="code-{{ key }}">LS ID #1/Member ID</label>
       <input id="code-{{ key }}" type="text" name="member_code"
              value="{{ member.member_code if member else '' }}" required>
     </div>
     <div>
-      <label for="code-2-{{ key }}">LS #2 / Member ID</label>
+      <label for="code-2-{{ key }}">LS ID #2/Member ID</label>
       <input id="code-2-{{ key }}" type="text" name="member_code_2"
              value="{{ member.member_code_2 or '' if member else '' }}">
     </div>
     <div>
-      <label for="rc-cpr-{{ key }}">Red Cross CPR-C certificate #</label>
+      <label for="rc-cpr-{{ key }}">Red Cross CPR-C #</label>
       <input id="rc-cpr-{{ key }}" type="text" name="red_cross_cpr_number" inputmode="numeric"
              value="{{ member.red_cross_cpr_number or '' if member else '' }}">
     </div>
     <div>
-      <label for="rc-fa-{{ key }}">Red Cross Standard First Aid certificate #</label>
+      <label for="rc-fa-{{ key }}">Red Cross SFA #</label>
       <input id="rc-fa-{{ key }}" type="text" name="red_cross_fa_number" inputmode="numeric"
              value="{{ member.red_cross_fa_number or '' if member else '' }}">
     </div>
