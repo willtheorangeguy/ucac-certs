@@ -118,7 +118,7 @@ shipping a 404.
 ## Secrets
 
 | Secret | Used by | Notes |
-|---|---|---|
+| --- | --- | --- |
 | `FLY_API_TOKEN` | Deploy | A deploy token scoped to the `ucac-certs` app |
 
 Nothing else is needed. Application secrets — the session key, the manager allowlist, and

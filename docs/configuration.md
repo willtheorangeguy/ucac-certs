@@ -24,7 +24,7 @@ written in `.env`.
 Names are used verbatim — there is no prefix scheme.
 
 | Option | Type | Default | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `SESSION_SECRET` | string | *required* | Signing key for the session cookie. Minimum 32 characters. Rotating it signs everyone out. |
 | `MANAGER_EMAILS` | list | *required* | Comma- or newline-separated addresses allowed to sign in. Compared case-insensitively. |
 | `RESEND_API_KEY` | string | unset | Resend API key. Unset means no mail is sent at all. |
@@ -65,7 +65,7 @@ These are constants in the source. Changing one means editing the code, and each
 listed here so nobody hunts for an environment variable that does not exist.
 
 | Behaviour | Value | Defined in |
-|---|---|---|
+| --- | --- | --- |
 | Reminder ladder | 30, 14, and 7 days before expiry | `lss_report/web/settings.py` |
 | Scan day | Monday | `lss_report/web/scheduler.py` |
 | Scheduler tick | 60 seconds | `lss_report/web/scheduler.py` |
@@ -82,7 +82,7 @@ The expiry of every cell is the certification date plus the validity period for 
 column. These are policy, not configuration, and live in `lss_report/awards.py`.
 
 | Column | Award | Valid for |
-|---|---|---|
+| --- | --- | --- |
 | `NL` | National Lifeguard | 2 years |
 | `SI` | Swim Instructor | 2 years |
 | `LSI` | Lifesaving Instructor | 2 years |
@@ -108,7 +108,7 @@ Supervisor locker dates are entered by hand on the Staff page and stored in `sta
 Their validity periods live in `lss_report/web/repository.py`:
 
 | Field | Enter | Example | Computed expiry |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `fit_test_date` | Date the mask fit test was passed | `2024-10-06` | `2026-10-06`, two years later |
 | `cartridge_date` | Date the cartridge was issued | `2022-10-06` | `2027-10-06`, five years later |
 
@@ -153,7 +153,7 @@ For production values, see [Deployment](deployment.md).
 ```
 
 | Field | Type | Required | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `name` | string | yes | Roster spelling. Used only as a cross-check; lookups key off the member ID. |
 | `memberCode` | string | yes | Lifesaving Society member ID. Letters and digits only; upper-cased on load. |
 | `away` | boolean | no | Moves the member into the "Away" section. Defaults to `false`. |
@@ -165,7 +165,7 @@ rejected. `staff.json` is gitignored because it carries staff personal informati
 ## Troubleshooting
 
 | Symptom | Cause |
-|---|---|
+| --- | --- |
 | `Configuration error: SESSION_SECRET is required.` | The variable is unset or empty. `--env-file` was possibly not passed. |
 | Bounced back to the address form after typing a code | The `lss_pending` cookie expired. It lives as long as the code does, 15 minutes. Request a new code. |
 | Signed in, then immediately signed out | The address was removed from `MANAGER_EMAILS`. Membership is re-checked on every request, not just at sign-in. |

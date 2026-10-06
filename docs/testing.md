@@ -34,7 +34,7 @@ python -m pytest -k "expiry or reminder" -v
 ## What is covered
 
 | File | Covers |
-|---|---|
+| --- | --- |
 | `test_awards.py` | Award title to column mapping, the ordering traps, leap-year date arithmetic |
 | `test_grid.py` | Best-award selection, the status boundaries, away grouping, cross-check exclusions |
 | `test_scraper.py` | Page parsing, both card shapes, name warnings, member ID mismatches, retries |

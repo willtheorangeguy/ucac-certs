@@ -1,12 +1,15 @@
 # Installation
 
+<!-- markdownlint-disable MD046 -->
+<!-- Material tabs contain indented fences that CommonMark treats as indented code. -->
+
 The project is not published to PyPI. Every supported path installs from a checkout of
 the repository or builds the Docker image from it.
 
 ## Requirements
 
 | Requirement | Version | Notes |
-|---|---|---|
+| --- | --- | --- |
 | Python | 3.11 or newer | Declared as `requires-python` in `pyproject.toml` |
 | pip | any recent | Used to install the package and its dependencies |
 | Docker | any recent | Only for the container path |
@@ -44,7 +47,7 @@ Dropping `[test]` installs the runtime only. Keep it if you intend to run the su
 Installing the package registers two console scripts:
 
 | Script | Runs |
-|---|---|
+| --- | --- |
 | `lss-web` | The web application — the primary entrypoint |
 | `lss-report` | The command-line report generator, for maintenance and debugging |
 

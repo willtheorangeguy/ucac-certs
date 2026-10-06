@@ -18,7 +18,7 @@ longer in `MANAGER_EMAILS`.
 ### Authentication
 
 | Method | Path | Auth | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `GET` | `/login` | none | Sign-in form. `?sent=1` swaps it for the code form; `?bad=1` marks a wrong code; `?denied=1` reports an address with no access. |
 | `POST` | `/login` | none | Form field `email`. Always `303`, to `/login?sent=1` for a manager or `/login?denied=1` otherwise. A manager also gets the `lss_pending` cookie, a signed record of which address the code went to. |
 | `POST` | `/verify` | `lss_pending` | Form field `code`. Redeems the six-digit code for the address in the cookie, sets the session cookie, `303` to `/`. A wrong, expired, or already-used code is `303` to `/login?sent=1&bad=1`; a missing or forged cookie is `303` to `/login`. Neither sets a session cookie. |
@@ -42,7 +42,7 @@ location: /login?sent=1
 ### Dashboard and scans
 
 | Method | Path | Auth | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `GET` | `/` | session | The certification grid from the most recent completed scan. |
 | `POST` | `/scan` | session | Starts a scan on a worker thread and returns `303` to `/` immediately. A second call while one is running is ignored. |
 | `GET` | `/scan/status` | session | JSON: whether a scan is running, and the most recent scan row. |
@@ -63,7 +63,7 @@ Once a scan has run, `latest` is the scan row itself — `id`, `started_at`, `fi
 ### Roster
 
 | Method | Path | Auth | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `GET` | `/staff` | session | The active roster. `?error=` renders a message, HTML-escaped. |
 | `POST` | `/staff` | session | Adds a staff member from the panel. Always `303` to `/staff`, or to `/staff?error=...` on rejection. |
 | `POST` | `/staff/{staff_id}/edit` | session | Saves the same panel for an existing member. |
@@ -75,7 +75,7 @@ uses one panel for both — the **Add a staff member** button and the pencil on 
 the same dialog, empty or filled in:
 
 | Field | Type | Required | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `name` | string | yes | Roster spelling. Whitespace is collapsed. |
 | `member_code` | string | yes | Lifesaving Society member ID. Upper-cased; rejected unless alphanumeric. |
 | `member_code_2` | string | no | Second Society member ID for staff whose awards are split across two profiles. Validated like the primary ID; blank clears it. |
@@ -125,7 +125,7 @@ locker fields clear their stored values; an omitted `supervisor` field clears th
 ### Lockers
 
 | Method | Path | Auth | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `GET` | `/lockers` | session | Active supervisors' names, locker numbers, fit test expiries, cartridge expiries, and boot sizes. |
 | `GET` | `/lockers.xlsx` | session | The same five columns in an Excel workbook with real dates and expiry colours. |
 | `GET` | `/lockers.pdf` | session | The same five columns in a portrait PDF; large rosters paginate with repeated headings. |
@@ -169,7 +169,7 @@ inspector who asks to see the card. The **file** button on a roster row opens th
 kept for that member.
 
 | Method | Path | Auth | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `POST` | `/staff/{staff_id}/files` | session | Stores one uploaded copy. `multipart/form-data`, field `document`. Always `303` to `/staff`, or to `/staff?error=...` on rejection. |
 | `GET` | `/staff/{staff_id}/files/{file_id}` | session | The stored copy, as an attachment under the name it was uploaded with. |
 | `POST` | `/staff/{staff_id}/files/{file_id}/remove` | session | Forgets the copy and deletes the file itself. |
@@ -195,7 +195,7 @@ copies; deleting a copy is immediate and permanent.
 ### Exports and reporting
 
 | Method | Path | Auth | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `GET` | `/export.xlsx` | session | The grid as an Excel workbook, plus a Diagnostics sheet. |
 | `GET` | `/export.pdf` | session | The grid as a portrait PDF with repeated column headings. |
 | `GET` | `/workplace-first-aiders.xlsx` | session | Workplace first aiders with only name, Standard First Aid expiry, and CPR-C expiry. |
@@ -220,7 +220,7 @@ the same 30-, 14-, and 7-day ladder and notification deduplication as certificat
 ### Health
 
 | Method | Path | Auth | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `GET` | `/healthz` | none | Liveness probe. Used by the Docker `HEALTHCHECK` and the Fly.io HTTP check. |
 
 ```bash
@@ -241,7 +241,7 @@ Installing the package registers two console scripts. Both can also be run as mo
 Runs the web application. This is the primary entry point.
 
 | Flag | Type | Default | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `--host` | string | `0.0.0.0` | Interface to bind. |
 | `--port` | integer | `PORT`, else `8000` | Port to bind. |
 | `--env-file` | path | none | Load settings from a dotenv file. Existing environment variables win. |
@@ -270,7 +270,7 @@ Generates the grid straight from a `staff.json`, bypassing the database. It exis
 maintenance and debugging; the web application owns the roster.
 
 | Flag | Type | Default | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `--staff-file` | path | none | Roster to read. Required. |
 | `--env-file` | path | none | Load settings from a dotenv file. |
 | `--output` | path | none | Write the PDF here. |
@@ -290,7 +290,7 @@ Report completed for 45 staff record(s).
 ```
 
 | Exit code | Meaning |
-|---|---|
+| --- | --- |
 | `0` | The report was written. |
 | `1` | The Society could not be reached, or generation failed. |
 | `2` | A configuration problem — no roster, or neither output flag. |

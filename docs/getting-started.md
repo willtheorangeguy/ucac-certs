@@ -6,7 +6,7 @@ manager, with at least one staff member on the roster and a scan behind you.
 ## Prerequisites
 
 | Requirement | Minimum version | Check with |
-|---|---|---|
+| --- | --- | --- |
 | Python | 3.11 | `python --version` |
 | pip | any recent | `python -m pip --version` |
 | Network access to `lifesaving.org` | — | `curl -I https://www.lifesaving.org` |

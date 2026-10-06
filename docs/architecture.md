@@ -50,7 +50,7 @@ purpose-issued first aid award outranks it.
 `columns_for` distinguishes three outcomes, and the difference matters downstream:
 
 | Return | Meaning |
-|---|---|
+| --- | --- |
 | `None` | The title matched no rule. It goes to diagnostics as an unmapped award. |
 | `()` | Recognised, but not tracked on the grid — `Bronze Cross`, an exam clinic. |
 | Non-empty | One or more `(column, provisional)` pairs. |
@@ -78,7 +78,7 @@ at a time — number plus the holder's last name — and renders the answer into
 paragraph, so `parse_validation` reads that paragraph and nothing else. Three outcomes:
 
 | Result | Meaning |
-|---|---|
+| --- | --- |
 | A `RedCrossCertificate` | The pair validated. Carries the award title and the expiry. |
 | `None` | `No Certificate found` — the number and last name do not go together. |
 | `ParseError` | The page said something the parser does not recognise. |
@@ -103,7 +103,7 @@ original plus two recerts collapses into one cell.
 Status thresholds, as of the scan date:
 
 | Status | Condition |
-|---|---|
+| --- | --- |
 | `EXPIRED` | Expiry is before today |
 | `EXPIRING` | Expiry is within 30 days |
 | `CURRENT` | Anything later |
@@ -141,7 +141,7 @@ new fit test or arrange a cartridge replacement.
 ### The web application
 
 | Module | Responsibility |
-|---|---|
+| --- | --- |
 | `settings.py` | Environment parsing and validation. Frozen dataclass; the manager allowlist lives here. |
 | `db.py` | One shared `sqlite3` connection guarded by an `RLock`. |
 | `files.py` | Uploaded copies of certificates: what is accepted, and where the bytes go. |
@@ -198,7 +198,7 @@ missing `ALTER TABLE`s, because `CREATE TABLE IF NOT EXISTS` leaves a live datab
 table untouched and a new column would otherwise never appear in production.
 
 | Table | Holds |
-|---|---|
+| --- | --- |
 | `staff` | The roster of record, including separate Red Cross First Aid and CPR-C numbers, the Supervisor flag, locker number, fit test and cartridge issue dates, and boot size. Soft-deleted via `removed_at`. |
 | `manual_cert` | Certification dates entered by hand, one per staff member per column. |
 | `certificate_file` | An uploaded copy of a certificate: its own name, kind, size, uploader, and the generated name its bytes are stored under. |

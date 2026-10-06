@@ -8,7 +8,7 @@ and runs tests.
 ## Prerequisites
 
 | Requirement | Why |
-|---|---|
+| --- | --- |
 | A Fly.io account and `flyctl` | Hosts the application and the volume |
 | A Resend account with a verified sending domain | Sign-in codes and reminder emails |
 | A domain you control | Resend verifies ownership through DNS records |
@@ -112,7 +112,7 @@ it gives you at your registrar, wait for verification, then set `MAIL_FROM` to a
 on that domain.
 
 | Limit | Value |
-|---|---|
+| --- | --- |
 | Free tier | 3,000 emails per month |
 | Daily cap | 100 emails per day |
 | Recipients | Counted individually |
@@ -181,7 +181,7 @@ reminders without anyone noticing.
 ## Operations
 
 | Task | Command |
-|---|---|
+| --- | --- |
 | Tail logs | `fly logs` |
 | Open a shell | `fly ssh console` |
 | Check machine state | `fly status` |

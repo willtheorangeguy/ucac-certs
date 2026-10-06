@@ -32,7 +32,7 @@ page top to bottom.
 ## Voice and style
 
 | Rule | Do | Don't |
-|---|---|---|
+| --- | --- | --- |
 | Person | "You run `build`" | "The user runs `build`" |
 | Voice | "The parser reads the file" | "The file is read by the parser" |
 | Tense | "The command returns 0" | "The command will return 0" |
@@ -279,7 +279,7 @@ what the docstrings already say.
 One table per command, plus a usage example. Never prose-describe flags.
 
 | Flag | Type | Default | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `--output` | path | `./out` | Directory for generated files |
 | `--verbose` | flag | off | Print each file as it is written |
 
@@ -296,7 +296,7 @@ endpoint reference that documents only the happy path is half-written.
 **One reference table per source**, with these exact columns:
 
 | Option | Type | Default | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `log_level` | string | `info` | One of `debug`, `info`, `warning`, `error` |
 | `timeout` | integer | `30` | Seconds before a request is abandoned |
 
@@ -314,7 +314,7 @@ endpoint reference that documents only the happy path is half-written.
 ## Admonitions
 
 | Type | Use for |
-|---|---|
+| --- | --- |
 | `note` | An aside the reader can skip |
 | `tip` | An optional improvement |
 | `warning` | Something that will cause a problem |
