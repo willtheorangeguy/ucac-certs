@@ -139,7 +139,11 @@ def test_verify_endpoint_refuses_a_code_with_no_pending_address(client, database
 def test_verify_endpoint_refuses_a_forged_pending_cookie(client, database, settings):
     auth = Auth(database, settings)
     code = auth.issue_login_code("manager@example.org", client="testclient")
-    client.cookies.set(PENDING_COOKIE, auth.create_pending("manager@example.org")[:-2] + "xy")
+    pending = auth.create_pending("manager@example.org")
+    payload, signature = pending.rsplit(".", 1)
+    # Change a significant signature character; a fixed suffix can match by chance.
+    replacement = "A" if signature[0] != "A" else "B"
+    client.cookies.set(PENDING_COOKIE, f"{payload}.{replacement}{signature[1:]}")
     response = client.post("/verify", data={"code": code})
     assert response.status_code == 303
     assert response.headers["location"] == "/login"

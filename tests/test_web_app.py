@@ -458,8 +458,12 @@ def test_lockers_show_only_active_supervisors(signed_in, database):
     repo.remove(removed.id, actor="manager")
     response = signed_in.get("/lockers")
     assert response.status_code == 200
-    for text in ("Supervisor Person", "007", "2026-10-06", "2027-10-06", "Boot Size"):
+    for text in ("Supervisor Person", "007", "2026-10-06", "2027-10-06"):
         assert text in response.text
+    from bs4 import BeautifulSoup
+    assert [cell.get_text(strip=True) for cell in BeautifulSoup(response.text, "html.parser").select("thead th")] == [
+        "Name", "Locker Number", "Fit Test Expiry", "Cartridge Expiry", "Boot Size",
+    ]
     assert "Regular Person" not in response.text
     assert "Removed Person" not in response.text
 
@@ -551,7 +555,7 @@ def test_locker_exports_use_current_supervisors_without_a_scan(signed_in, databa
     from io import BytesIO
     from openpyxl import load_workbook
     repo = StaffRepository(database)
-    repo.add(name="Supervisor Person", member_code="SUP001", supervisor=True,
+    member = repo.add(name="Supervisor Person", member_code="SUP001", supervisor=True,
              locker_number="007", fit_test_date="2024-10-06",
              cartridge_date="2022-10-06", boot_size="9.5")
     repo.add(name="Regular Person", member_code="REG001")
@@ -568,7 +572,7 @@ def test_locker_exports_use_current_supervisors_without_a_scan(signed_in, databa
         assert sheet["B7"].value == "007"
         assert sheet["E7"].value == "9.5"
         assert sheet.max_row == 7
-        repo.update(1, actor="test", supervisor=False)
+        repo.update(member.id, actor="test", supervisor=False)
         empty = signed_in.get("/lockers.xlsx")
         assert load_workbook(BytesIO(empty.content))["Lockers"].max_row == 6
     else:
@@ -576,3 +580,58 @@ def test_locker_exports_use_current_supervisors_without_a_scan(signed_in, databa
         assert response.content.startswith(b"%PDF-")
     page = signed_in.get("/lockers").text
     assert 'href="/lockers.xlsx"' in page and 'href="/lockers.pdf"' in page
+
+
+@pytest.mark.parametrize("field", ["fit_test_date", "cartridge_date"])
+@pytest.mark.parametrize("value", ["2026-02-30", "9999-10-06"])
+def test_bad_locker_date_rejects_add_before_verification(signed_in, database, monkeypatch, field, value):
+    calls = []
+    monkeypatch.setattr("lss_report.web.app.verify_member_code", lambda *args: calls.append(args))
+    response = signed_in.post("/staff", data={
+        "name": "Robin Rivers", "member_code": "RRV001", "supervisor": "true", field: value,
+    })
+    assert "error=" in response.headers["location"]
+    assert StaffRepository(database).active() == []
+    assert calls == []
+
+
+def test_staff_table_headers_and_checkmarks_match_current_interface(signed_in, database):
+    from bs4 import BeautifulSoup
+    repo = StaffRepository(database)
+    repo.add(name="Supervisor Person", member_code="SUP001", society_name="Supervisor Person",
+             phone="403-555-0100", supervisor=True, away=True)
+    repo.add(name="Regular Person", member_code="REG001")
+    soup = BeautifulSoup(signed_in.get("/staff").text, "html.parser")
+    headings = [th.get_text(strip=True) for th in soup.select("thead th")]
+    assert "Society Name" in headings
+    assert "Phone" not in headings
+    table = soup.select_one("table")
+    assert "403-555-0100" not in table.get_text()
+    rows = {tr.td.get_text(strip=True): tr.find_all("td") for tr in table.select("tbody tr")}
+    for column in ("Society Name", "Away", "Supervisor"):
+        assert rows["Supervisor Person"][headings.index(column)].get_text(strip=True) == "✓"
+    for column in ("Away", "Supervisor"):
+        assert rows["Regular Person"][headings.index(column)].get_text(strip=True) == ""
+
+
+def test_unchecking_supervisor_preserves_details_and_stops_locker_reminders(signed_in, database):
+    from datetime import date
+    from lss_report.web.repository import ScanRepository
+    repo = StaffRepository(database)
+    member = repo.add(name="Robin Rivers", member_code="RRV001", supervisor=True,
+                      locker_number="007", fit_test_date="2024-10-06",
+                      cartridge_date="2021-10-06", boot_size="9.5")
+    scans = ScanRepository(database)
+    assert len(scans.due(None, (30, 14, 7), date(2026, 9, 6))) == 2
+    response = signed_in.post(f"/staff/{member.id}/edit", data={
+        "locker_number": "007", "fit_test_date": "2024-10-06",
+        "cartridge_date": "2021-10-06", "boot_size": "9.5",
+    })
+    assert response.headers["location"] == "/staff"
+    saved = repo.get(member.id)
+    assert not saved.supervisor
+    assert (saved.locker_number, saved.fit_test_date, saved.cartridge_date, saved.boot_size) == (
+        "007", "2024-10-06", "2021-10-06", "9.5",
+    )
+    assert "Robin Rivers" not in signed_in.get("/lockers").text
+    assert scans.due(None, (30, 14, 7), date(2026, 9, 6)) == []
