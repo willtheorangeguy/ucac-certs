@@ -566,9 +566,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             request,
             "reminders.html",
             user=user,
-            upcoming=scan_repo.upcoming(scan_id, settings.reminder_days, today)
-            if scan_id
-            else [],
+            upcoming=scan_repo.upcoming(scan_id, settings.reminder_days, today),
             history=scan_repo.history(),
             thresholds=settings.reminder_days,
             reminder_hour=settings.reminder_hour,

@@ -8,7 +8,7 @@
   <p class="muted">
     Staff are emailed automatically at
     {% for t in thresholds %}{{ t }}{% if not loop.last %}, {% endif %}{% endfor %}
-    days before a certification expires, once each, at
+    days before a certification, fit test or cartridge expires, once each, at
     {{ '%02d'|format(reminder_hour) }}:00 Mountain time.
     Staff with no email address on file are skipped.
   </p>
@@ -17,12 +17,13 @@
 <div class="panel">
   <h2 style="font-size:1rem;margin-top:0">Scheduled over the next 60 days</h2>
   {% if not has_scan %}
-    <p>Run a scan first — the schedule is built from the most recent results.</p>
-  {% elif upcoming %}
+    <p class="muted">Run a scan to include scanned certifications. Manual dates and supervisor locker dates are already included.</p>
+  {% endif %}
+  {% if upcoming %}
     <div class="scroll">
       <table>
         <thead>
-          <tr><th>Sends on</th><th>In</th><th>Staff</th><th>Cert</th><th>Expires</th><th>To</th></tr>
+          <tr><th>Sends on</th><th>In</th><th>Staff</th><th>Item</th><th>Expires</th><th>To</th></tr>
         </thead>
         <tbody>
           {% for item in upcoming %}
@@ -57,7 +58,7 @@
     <div class="scroll">
       <table>
         <thead>
-          <tr><th>Sent</th><th>Staff</th><th>Cert</th><th>Notice</th><th>Expiry</th><th>To</th></tr>
+          <tr><th>Sent</th><th>Staff</th><th>Item</th><th>Notice</th><th>Expiry</th><th>To</th></tr>
         </thead>
         <tbody>
           {% for item in history %}

@@ -74,3 +74,15 @@ def test_reminder_pass_runs_once_a_day(scheduler, monkeypatch):
     sched.tick(seven_am)
     sched.tick(seven_am.replace(minute=45))
     assert len(calls) == 1
+
+
+def test_scheduler_sends_locker_reminders_before_first_scan(scheduler, database, monkeypatch):
+    sched, _, _ = scheduler
+    StaffRepository(database).add(name="Robin Rivers", member_code="RRV001", supervisor=True,
+                                  email="robin@example.org", fit_test_date="2024-10-06")
+    calls = []
+    monkeypatch.setattr(sched.reminders, "send_due", lambda due: calls.extend(due) or [])
+    sched._send_reminders(datetime(2026, 9, 6).date())
+    assert len(calls) == 1
+    assert calls[0]["column_code"] == "Fit test"
+    assert calls[0]["threshold"] == 30

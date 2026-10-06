@@ -75,6 +75,13 @@ class EmailChannel:
 
 def reminder_text(name: str, column_code: str, expiry: date, days: int) -> str:
     when = "expires today" if days == 0 else f"expires in {days} days"
+    if column_code in ("Fit test", "Cartridge"):
+        item = "mask fit test" if column_code == "Fit test" else "respirator cartridge"
+        action = "book a new fit test" if column_code == "Fit test" else "arrange a replacement cartridge"
+        return (
+            f"Hi {name.split()[0]}, your {item} {when} (on {expiry.isoformat()}). "
+            f"Please {action} with the Aquatic Centre."
+        )
     return (
         f"Hi {name.split()[0]}, your {column_code} certification {when} "
         f"(on {expiry.isoformat()}). Please book a recertification with the Aquatic Centre."
@@ -141,7 +148,11 @@ class Reminders:
                     channel.send(
                         Message(
                             to=target,
-                            subject=f"{entry['column_code']} certification expires {entry['expiry_date']}",
+                            subject=(
+                                f"{entry['column_code']} expires {entry['expiry_date']}"
+                                if entry["column_code"] in ("Fit test", "Cartridge")
+                                else f"{entry['column_code']} certification expires {entry['expiry_date']}"
+                            ),
                             body=body,
                         )
                     )

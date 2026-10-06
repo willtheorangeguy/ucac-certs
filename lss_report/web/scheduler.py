@@ -89,8 +89,6 @@ class Scheduler:
 
     def _send_reminders(self, today: date) -> None:
         scan_id = self.scan_repo.latest_complete_id()
-        if scan_id is None:
-            return
         due = self.scan_repo.due(scan_id, self.settings.reminder_days, today)
         sent = self.reminders.send_due(due)
         if sent:

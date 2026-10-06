@@ -381,7 +381,7 @@ def _outranks(candidate: dict, incumbent: dict) -> bool:
     )
 
 
-def effective_cells(database: Database, scan_id: int, as_of: date) -> dict[int, dict[str, dict]]:
+def effective_cells(database: Database, scan_id: int | None, as_of: date) -> dict[int, dict[str, dict]]:
     """Stored scan cells with hand-entered certification dates folded in.
 
     A manual entry is a third source alongside the Society and the Red Cross, not an
@@ -529,11 +529,10 @@ class ScanRepository:
             "SELECT kind, detail FROM scan_note WHERE scan_id = ? ORDER BY kind, detail", (scan_id,)
         )]
 
-    def _reminder_rows(self, scan_id: int, as_of: date) -> list[dict]:
-        """Every dated cell of a scan, manual entries folded in, with its staff member.
+    def _reminder_rows(self, scan_id: int | None, as_of: date) -> list[dict]:
+        """Effective certification cells and supervisor locker dates with their staff.
 
-        Reminders read the same effective value the dashboard and the exports show,
-        so a hand-entered date moves the reminder schedule with it.
+        Manual and locker dates work without a scan and move reminders immediately.
         """
         staff_by_id = {
             row["id"]: row
@@ -558,10 +557,29 @@ class ScanRepository:
                         "email": staff["email"],
                     }
                 )
+        for row in staff_by_id.values():
+            member = _staff(row)
+            if not member.supervisor:
+                continue
+            for code, expiry in (
+                ("Fit test", member.fit_test_expiry),
+                ("Cartridge", member.cartridge_expiry),
+            ):
+                if expiry is None:
+                    continue
+                rows.append({
+                    "staff_id": member.id,
+                    "column_code": code,
+                    "expiry_date": expiry.isoformat(),
+                    "status": status_for(expiry, as_of).value,
+                    "name": member.name,
+                    "society_name": member.society_name,
+                    "email": member.email,
+                })
         return rows
 
     def upcoming(
-        self, scan_id: int, thresholds: tuple[int, ...], as_of: date, horizon_days: int = 60
+        self, scan_id: int | None, thresholds: tuple[int, ...], as_of: date, horizon_days: int = 60
     ) -> list[dict]:
         """Every reminder scheduled to fire between today and the horizon.
 
@@ -604,7 +622,7 @@ class ScanRepository:
             )
         ]
 
-    def due(self, scan_id: int, thresholds: tuple[int, ...], as_of: date) -> list[dict]:
+    def due(self, scan_id: int | None, thresholds: tuple[int, ...], as_of: date) -> list[dict]:
         """Cells whose expiry lands exactly on a reminder step."""
         wanted = {(as_of.toordinal() + days): days for days in thresholds}
         rows = self._reminder_rows(scan_id, as_of)

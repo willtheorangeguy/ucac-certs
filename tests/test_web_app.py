@@ -496,3 +496,17 @@ def test_add_staff_saves_locker_fields(signed_in, database, monkeypatch):
     assert "Lifeguarding certification dates" in page
     assert "Locker information" in page
     assert "Certification dates entered by hand" not in page
+
+
+def test_locker_reminder_schedule_visible_without_scan(signed_in, database, monkeypatch):
+    class FixedDatetime:
+        @staticmethod
+        def now(tz):
+            from datetime import datetime
+            return datetime(2026, 9, 6, tzinfo=tz)
+    monkeypatch.setattr("lss_report.web.app.datetime", FixedDatetime)
+    StaffRepository(database).add(name="Robin Rivers", member_code="RRV001", supervisor=True,
+        email="robin@example.org", fit_test_date="2024-10-06", cartridge_date="2021-10-06")
+    page = signed_in.get("/reminders").text
+    assert "Fit test" in page and "Cartridge" in page
+    assert "2026-10-06" in page and "robin@example.org" in page
