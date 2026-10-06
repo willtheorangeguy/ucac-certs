@@ -68,7 +68,12 @@ dates, and locker information. Enter the locker number, mask fit test date, cart
 issue date, and boot size in the last section.
 
 The Lockers table shows the name, locker number, fit test expiry, cartridge expiry, and
-boot size. Fit tests expire two years after the test date; cartridges expire five years
+boot size. Like the Overview, expiry cells are red when expired, yellow when due within
+30 days, and grey when no date is recorded. Away supervisors appear in a separate section.
+Use **Download Excel** or **Download PDF** on the Lockers page to export the same five
+columns and colours. Both downloads work before the first certification scan.
+
+Fit tests expire two years after the test date; cartridges expire five years
 after their issue date. For example, a fit test dated `2024-10-06` expires `2026-10-06`,
 and a cartridge issued `2022-10-06` expires `2027-10-06`.
 
