@@ -456,7 +456,7 @@ def test_lockers_show_only_active_supervisors(signed_in, database):
     repo.remove(removed.id, actor="manager")
     response = signed_in.get("/lockers")
     assert response.status_code == 200
-    for text in ("Supervisor Person", "007", "2026-10-06", "2027-10-06", "Boot size"):
+    for text in ("Supervisor Person", "007", "2026-10-06", "2027-10-06", "Boot Size"):
         assert text in response.text
     assert "Regular Person" not in response.text
     assert "Removed Person" not in response.text
