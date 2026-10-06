@@ -60,6 +60,24 @@ scan found on the usual terms — a purpose-issued award beats a provisional cre
 the later expiry wins — so an old date cannot hide a current award. It takes effect
 immediately, on the dashboard, the exports, and the reminder schedule alike.
 
+### Supervisor lockers
+
+Select **Supervisor** in the staff add or edit form to include that member on the
+**Lockers** tab. The form has three sections: staff details, lifeguarding certification
+dates, and locker information. Enter the locker number, mask fit test date, cartridge
+issue date, and boot size in the last section.
+
+The Lockers table shows the name, locker number, fit test expiry, cartridge expiry, and
+boot size. Fit tests expire two years after the test date; cartridges expire five years
+after their issue date. For example, a fit test dated `2024-10-06` expires `2026-10-06`,
+and a cartridge issued `2022-10-06` expires `2027-10-06`.
+
+Active supervisors receive email reminders on the same 30-, 14-, and 7-day schedule as
+certifications. These dates appear on the Reminders page and work before the first scan.
+Saving a new date moves its reminder schedule immediately. Clearing a date stops its
+reminders; clearing Supervisor hides the member from Lockers and stops locker reminders,
+while keeping their locker details. Staff without an email address are skipped.
+
 ## Cell colours
 
 | Colour | Meaning |
