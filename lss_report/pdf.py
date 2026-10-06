@@ -22,6 +22,7 @@ from reportlab.platypus import (
 from . import theme
 from .awards import COLUMNS, CPR_C, FIRST_AID
 from .grid import EXPIRY_WARNING_DAYS, Grid
+from .lockers import LOCKER_HEADINGS, LockerReport
 
 
 def _register_fonts() -> tuple[str, str]:
@@ -276,5 +277,75 @@ def build_first_aiders_pdf(grid: Grid, output_path: Path) -> None:
         bottomMargin=0.35 * inch,
         title="Workplace First Aiders",
         author="Automated Certification Report",
+    )
+    document.build(story)
+
+
+def _lockers_table(report: LockerReport, font: str, bold_font: str, styles) -> Table:
+    rows = [list(LOCKER_HEADINGS)]
+    commands = [
+        ("FONTNAME", (0, 0), (-1, -1), font),
+        ("FONTNAME", (0, 0), (-1, 0), bold_font),
+        ("FONTSIZE", (0, 0), (-1, -1), 6.5),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(f"#{theme.HEADER}")),
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#AEAAAA")),
+        ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]
+    seen_away = False
+    for row in report.rows:
+        if row.away and not seen_away:
+            seen_away = True
+            index = len(rows)
+            rows.append(["Away", "", "", "", ""])
+            commands.extend([
+                ("SPAN", (0, index), (-1, index)),
+                ("BACKGROUND", (0, index), (-1, index), colors.HexColor(f"#{theme.HEADER}")),
+                ("FONTNAME", (0, index), (-1, index), bold_font),
+            ])
+        index = len(rows)
+        rows.append([
+            Paragraph(escape(row.name), styles["Cell"]),
+            Paragraph(escape(row.locker_number or ""), styles["Cell"]),
+            row.fit_test.expiry_date.isoformat() if row.fit_test.expiry_date else "",
+            row.cartridge.expiry_date.isoformat() if row.cartridge.expiry_date else "",
+            Paragraph(escape(row.boot_size or ""), styles["Cell"]),
+        ])
+        for offset, cell in ((2, row.fit_test), (3, row.cartridge)):
+            if fill := theme.STATUS_FILL[cell.status]:
+                commands.extend([
+                    ("BACKGROUND", (offset, index), (offset, index), colors.HexColor(f"#{fill}")),
+                    ("TEXTCOLOR", (offset, index), (offset, index),
+                     colors.HexColor(f"#{theme.STATUS_TEXT[cell.status]}")),
+                ])
+    table = Table(rows, colWidths=[2.3 * inch, 1.1 * inch, 1.4 * inch, 1.5 * inch, 1.1 * inch], repeatRows=1)
+    table.setStyle(TableStyle(commands))
+    return table
+
+
+def build_lockers_pdf(report: LockerReport, output_path: Path) -> None:
+    """Export supervisor lockers as a paginated table with coloured expiry dates."""
+    font, bold_font = _register_fonts()
+    styles = _styles(font, bold_font)
+    legend = (
+        f"<font backColor='#{theme.EXPIRED}'>&nbsp; Expired &nbsp;</font> &nbsp; "
+        f"<font backColor='#{theme.EXPIRING}'>&nbsp; Expires within {EXPIRY_WARNING_DAYS} days &nbsp;</font> &nbsp; "
+        f"<font backColor='#{theme.MISSING}' color='#FFFFFF'>&nbsp; No award on record &nbsp;</font>"
+    )
+    story = [
+        Paragraph("UCalgary Aquatic Center Staff Lockers", styles["Title"]),
+        Paragraph(f"Generated {report.as_of.isoformat()} | Fit tests 2yr; cartridges 5yr", styles["Body"]),
+        Paragraph(legend, styles["Body"]),
+        Spacer(1, 0.1 * inch),
+        _lockers_table(report, font, bold_font, styles),
+    ]
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    document = SimpleDocTemplate(
+        str(output_path), pagesize=letter,
+        leftMargin=0.55 * inch, rightMargin=0.55 * inch,
+        topMargin=0.35 * inch, bottomMargin=0.35 * inch,
+        title="Staff Lockers", author="Automated Certification Report",
     )
     document.build(story)

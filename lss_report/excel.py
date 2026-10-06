@@ -10,6 +10,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 from . import theme
 from .awards import COLUMNS, CPR_C, FIRST_AID
 from .grid import EXPIRY_WARNING_DAYS, Grid, MemberRow
+from .lockers import LOCKER_HEADINGS, LockerReport
 from .models import CellStatus
 
 DATE_FORMAT = "yyyy-mm-dd"
@@ -197,5 +198,66 @@ def build_first_aiders_workbook(grid: Grid, output_path: Path) -> None:
     sheet.column_dimensions["A"].width = 30
     sheet.column_dimensions["B"].width = 25
     sheet.column_dimensions["C"].width = 18
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    workbook.save(output_path)
+
+
+def build_lockers_workbook(report: LockerReport, output_path: Path) -> None:
+    """Export supervisor locker details with the overview's expiry colours."""
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Lockers"
+    sheet["A1"] = "UCalgary Aquatic Center Staff Lockers"
+    sheet["A1"].font = Font(bold=True, size=14)
+    sheet["A2"] = f"Generated {report.as_of.isoformat()}"
+    sheet["A3"] = "Fit tests: 2 years; cartridges: 5 years"
+    for index, (label, status) in enumerate((
+        ("Expired", CellStatus.EXPIRED),
+        (f"Expires within {EXPIRY_WARNING_DAYS} days", CellStatus.EXPIRING),
+        ("No award on record", CellStatus.MISSING),
+    ), start=1):
+        cell = sheet.cell(row=4, column=index, value=label)
+        cell.fill = _fill(theme.STATUS_FILL[status])
+        cell.font = Font(color=theme.STATUS_TEXT[status])
+
+    header_row = 6
+    for index, heading in enumerate(LOCKER_HEADINGS, start=1):
+        cell = sheet.cell(row=header_row, column=index, value=heading)
+        cell.font = Font(bold=True)
+        cell.fill = _fill(theme.HEADER)
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = _BORDER
+
+    row_index = header_row + 1
+    seen_away = False
+    for row in report.rows:
+        if row.away and not seen_away:
+            seen_away = True
+            sheet.merge_cells(start_row=row_index, start_column=1, end_row=row_index, end_column=5)
+            marker = sheet.cell(row=row_index, column=1, value="Away")
+            marker.font = Font(bold=True)
+            marker.fill = _fill(theme.HEADER)
+            row_index += 1
+
+        for index, value in ((1, row.name), (2, row.locker_number), (5, row.boot_size)):
+            cell = sheet.cell(row=row_index, column=index, value=value)
+            # Keep entered text, including leading zeroes and '=' prefixes, literal.
+            cell.data_type = "s"
+            cell.border = _BORDER
+            cell.alignment = Alignment(horizontal="left" if index == 1 else "center")
+        for index, source in ((3, row.fit_test), (4, row.cartridge)):
+            cell = sheet.cell(row=row_index, column=index, value=source.expiry_date)
+            cell.number_format = DATE_FORMAT
+            if fill := theme.STATUS_FILL[source.status]:
+                cell.fill = _fill(fill)
+            cell.font = Font(color=theme.STATUS_TEXT[source.status])
+            cell.alignment = Alignment(horizontal="center")
+            cell.border = _BORDER
+        row_index += 1
+
+    sheet.freeze_panes = "C7"
+    sheet.auto_filter.ref = f"A{header_row}:E{row_index - 1}"
+    for column, width in (("A", 32), ("B", 18), ("C", 24), ("D", 24), ("E", 14)):
+        sheet.column_dimensions[column].width = width
     output_path.parent.mkdir(parents=True, exist_ok=True)
     workbook.save(output_path)

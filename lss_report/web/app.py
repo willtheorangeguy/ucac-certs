@@ -15,11 +15,11 @@ from fastapi.templating import Jinja2Templates
 from starlette.datastructures import UploadFile
 
 from ..awards import COLUMNS, CPR_C, FIRST_AID, add_years
-from ..excel import build_first_aiders_workbook, build_workbook
+from ..excel import build_first_aiders_workbook, build_lockers_workbook, build_workbook
 from ..grid import EXPIRY_WARNING_DAYS, Grid
 from ..lockers import LockerExpiry, LockerReport, LockerRow
 from ..models import CellStatus
-from ..pdf import build_first_aiders_pdf, build_pdf
+from ..pdf import build_first_aiders_pdf, build_lockers_pdf, build_pdf
 from .. import theme
 from .auth import PENDING_COOKIE, SESSION_COOKIE, Auth
 from .db import Database
@@ -549,7 +549,15 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             build_first_aiders_pdf, "pdf", _grid(), stem="workplace-first-aiders"
         )
 
-    def _download(builder, suffix: str, grid: Grid, *, stem: str = "certifications") -> Response:
+    @app.get("/lockers.xlsx")
+    def export_lockers_excel(user: str = Depends(current_user)):
+        return _download(build_lockers_workbook, "xlsx", _lockers(), stem="lockers")
+
+    @app.get("/lockers.pdf")
+    def export_lockers_pdf(user: str = Depends(current_user)):
+        return _download(build_lockers_pdf, "pdf", _lockers(), stem="lockers")
+
+    def _download(builder, suffix: str, grid: Grid | LockerReport, *, stem: str = "certifications") -> Response:
         media = {
             "pdf": "application/pdf",
             "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

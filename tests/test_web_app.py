@@ -11,6 +11,8 @@ PROTECTED = [
     "/",
     "/staff",
     "/lockers",
+    "/lockers.xlsx",
+    "/lockers.pdf",
     "/reminders",
     "/diagnostics",
     "/export.xlsx",
@@ -542,3 +544,35 @@ def test_lockers_use_overview_colours_and_warning_boundaries(signed_in, database
         assert "color:#FFFFFF" in cell["style"]
     assert soup.select_one("tbody th").get_text(strip=True) == "Away"
     assert "Expires within 30 days" in response.text
+
+
+@pytest.mark.parametrize("suffix", ["xlsx", "pdf"])
+def test_locker_exports_use_current_supervisors_without_a_scan(signed_in, database, suffix):
+    from io import BytesIO
+    from openpyxl import load_workbook
+    repo = StaffRepository(database)
+    repo.add(name="Supervisor Person", member_code="SUP001", supervisor=True,
+             locker_number="007", fit_test_date="2024-10-06",
+             cartridge_date="2022-10-06", boot_size="9.5")
+    repo.add(name="Regular Person", member_code="REG001")
+    removed = repo.add(name="Removed Person", member_code="REM001", supervisor=True)
+    repo.remove(removed.id, actor="test")
+    response = signed_in.get(f"/lockers.{suffix}")
+    assert response.status_code == 200
+    assert f'attachment; filename="lockers-' in response.headers["content-disposition"]
+    assert response.headers["content-disposition"].endswith(f'.{suffix}"')
+    if suffix == "xlsx":
+        assert response.headers["content-type"].startswith("application/vnd.openxmlformats")
+        sheet = load_workbook(BytesIO(response.content))["Lockers"]
+        assert sheet["A7"].value == "Supervisor Person"
+        assert sheet["B7"].value == "007"
+        assert sheet["E7"].value == "9.5"
+        assert sheet.max_row == 7
+        repo.update(1, actor="test", supervisor=False)
+        empty = signed_in.get("/lockers.xlsx")
+        assert load_workbook(BytesIO(empty.content))["Lockers"].max_row == 6
+    else:
+        assert response.headers["content-type"] == "application/pdf"
+        assert response.content.startswith(b"%PDF-")
+    page = signed_in.get("/lockers").text
+    assert 'href="/lockers.xlsx"' in page and 'href="/lockers.pdf"' in page
