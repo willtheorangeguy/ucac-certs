@@ -180,5 +180,28 @@ def test_a_database_predating_the_red_cross_column_gains_it(tmp_path):
         assert StaffRepository(database).active()[0].red_cross_number is None
         assert StaffRepository(database).active()[0].red_cross_cpr_number is None
         assert StaffRepository(database).active()[0].member_code_2 is None
+        assert StaffRepository(database).active()[0].supervisor is False
+        assert StaffRepository(database).active()[0].fit_test_expiry is None
+        assert StaffRepository(database).active()[0].cartridge_expiry is None
+        assert StaffRepository(database).active()[0].locker_number is None
+        assert StaffRepository(database).active()[0].boot_size is None
     finally:
         database.close()
+
+
+def test_locker_details_round_trip_and_calendar_expiries(staff):
+    member = staff.add(
+        name="Robin Rivers", member_code="RRV001", supervisor=True,
+        locker_number="007", fit_test_date="2024-02-29",
+        cartridge_date="2024-02-29", boot_size="9.5",
+    )
+    assert member.supervisor is True
+    assert member.locker_number == "007"
+    assert member.fit_test_expiry == date(2026, 2, 28)
+    assert member.cartridge_expiry == date(2029, 2, 28)
+    assert member.boot_size == "9.5"
+    staff.update(member.id, actor="manager", supervisor=False, fit_test_date=None)
+    updated = staff.get(member.id)
+    assert updated.supervisor is False
+    assert updated.fit_test_expiry is None
+    assert updated.locker_number == "007"

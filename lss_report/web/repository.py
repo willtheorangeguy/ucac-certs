@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
-from ..awards import COLUMNS_BY_CODE, expiry_for
+from ..awards import COLUMNS_BY_CODE, add_years, expiry_for
 from ..config import ConfigurationError, load_staff_file
 from ..grid import Grid, MemberRow, status_for
 from ..models import CellStatus, StaffMember
@@ -30,6 +30,20 @@ class Staff:
     away: bool
     red_cross_number: str | None = None
     red_cross_cpr_number: str | None = None
+
+    supervisor: bool = False
+    locker_number: str | None = None
+    fit_test_date: str | None = None
+    cartridge_date: str | None = None
+    boot_size: str | None = None
+
+    @property
+    def fit_test_expiry(self) -> date | None:
+        return add_years(date.fromisoformat(self.fit_test_date), 2) if self.fit_test_date else None
+
+    @property
+    def cartridge_expiry(self) -> date | None:
+        return add_years(date.fromisoformat(self.cartridge_date), 5) if self.cartridge_date else None
 
     @property
     def red_cross_fa_number(self) -> str | None:
@@ -63,6 +77,11 @@ def _staff(row) -> Staff:
         email=row["email"],
         phone=row["phone"],
         away=bool(row["away"]),
+        supervisor=bool(row["supervisor"]),
+        locker_number=row["locker_number"],
+        fit_test_date=row["fit_test_date"],
+        cartridge_date=row["cartridge_date"],
+        boot_size=row["boot_size"],
         red_cross_number=row["red_cross_number"],
         red_cross_cpr_number=row["red_cross_cpr_number"],
     )
@@ -133,6 +152,11 @@ class StaffRepository:
         away: bool = False,
         red_cross_number: str | None = None,
         red_cross_cpr_number: str | None = None,
+        supervisor: bool = False,
+        locker_number: str | None = None,
+        fit_test_date: str | None = None,
+        cartridge_date: str | None = None,
+        boot_size: str | None = None,
         actor: str = "system",
     ) -> Staff:
         member_code = member_code.strip().upper()
@@ -142,8 +166,9 @@ class StaffRepository:
         with self.db.write() as connection:
             cursor = connection.execute(
                 "INSERT INTO staff (name, society_name, member_code, member_code_2, email, phone,"
-                " red_cross_number, red_cross_cpr_number, away, created_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " red_cross_number, red_cross_cpr_number, away, supervisor, locker_number,"
+                " fit_test_date, cartridge_date, boot_size, created_at)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     name,
                     society_name,
@@ -154,6 +179,11 @@ class StaffRepository:
                     red_cross_number or None,
                     red_cross_cpr_number or None,
                     int(away),
+                    int(supervisor),
+                    locker_number or None,
+                    fit_test_date or None,
+                    cartridge_date or None,
+                    boot_size or None,
                     _now(),
                 ),
             )
@@ -170,6 +200,11 @@ class StaffRepository:
             "email",
             "phone",
             "away",
+            "supervisor",
+            "locker_number",
+            "fit_test_date",
+            "cartridge_date",
+            "boot_size",
             "red_cross_number",
             "red_cross_cpr_number",
         }

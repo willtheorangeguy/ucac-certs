@@ -14,6 +14,11 @@ CREATE TABLE IF NOT EXISTS staff (
     -- a separate certificate, so it has its own optional number.
     red_cross_number TEXT,
     red_cross_cpr_number TEXT,
+    supervisor    INTEGER NOT NULL DEFAULT 0,
+    locker_number TEXT,
+    fit_test_date TEXT,
+    cartridge_date TEXT,
+    boot_size     TEXT,
     away          INTEGER NOT NULL DEFAULT 0,
     sms_consent_at TEXT,
     removed_at    TEXT,
