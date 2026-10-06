@@ -16,7 +16,8 @@ from starlette.datastructures import UploadFile
 
 from ..awards import COLUMNS, CPR_C, FIRST_AID, add_years
 from ..excel import build_first_aiders_workbook, build_workbook
-from ..grid import Grid
+from ..grid import EXPIRY_WARNING_DAYS, Grid
+from ..lockers import LockerExpiry, LockerReport, LockerRow
 from ..models import CellStatus
 from ..pdf import build_first_aiders_pdf, build_pdf
 from .. import theme
@@ -224,7 +225,24 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     def lockers_page(request: Request, user: str = Depends(current_user)):
         return render(
             request, "lockers.html", user=user,
-            staff=[member for member in staff_repo.active() if member.supervisor],
+            report=_lockers(), warning_days=EXPIRY_WARNING_DAYS,
+        )
+
+    def _lockers() -> LockerReport:
+        generated = datetime.now(TIMEZONE)
+        return LockerReport(
+            generated_at=generated,
+            rows=tuple(
+                LockerRow(
+                    name=member.display_name,
+                    locker_number=member.locker_number,
+                    fit_test=LockerExpiry.for_date(member.fit_test_expiry, generated.date()),
+                    cartridge=LockerExpiry.for_date(member.cartridge_expiry, generated.date()),
+                    boot_size=member.boot_size,
+                    away=member.away,
+                )
+                for member in staff_repo.active() if member.supervisor
+            ),
         )
 
     @app.post("/staff")

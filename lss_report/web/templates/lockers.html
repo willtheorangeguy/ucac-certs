@@ -3,20 +3,37 @@
 {% block title %}Lockers{% endblock %}
 {% block content %}
 <h1>Lockers</h1>
-<p class="muted">Supervisor locker information. Update details by editing a member on the <a href="/staff">Staff page</a>.</p>
+<div class="panel">
+  <p class="muted">Supervisor locker information. Update details by editing a member on the <a href="/staff">Staff page</a>.</p>
+  <p class="muted">
+    <span class="swatch" style="background:#{{ theme.EXPIRED }}">Expired</span>
+    <span class="swatch" style="background:#{{ theme.EXPIRING }}">Expires within {{ warning_days }} days</span>
+    <span class="swatch" style="background:#{{ theme.MISSING }};color:#fff">No award on record</span>
+    &nbsp; Fit tests 2yr &middot; Cartridges 5yr
+  </p>
+</div>
 <div class="panel scroll">
   <table>
     <thead>
       <tr><th>Name</th><th>Locker Number</th><th>Fit Test Expiry</th><th>Cartridge Expiry</th><th>Boot Size</th></tr>
     </thead>
     <tbody>
-      {% for member in staff %}
+      {% set ns = namespace(away=false) %}
+      {% for row in report.rows %}
+      {% if row.away and not ns.away %}
+        {% set ns.away = true %}
+        <tr><th colspan="5">Away</th></tr>
+      {% endif %}
       <tr>
-        <td>{{ member.display_name }}</td>
-        <td>{{ member.locker_number or '' }}</td>
-        <td>{{ member.fit_test_expiry or '' }}</td>
-        <td>{{ member.cartridge_expiry or '' }}</td>
-        <td>{{ member.boot_size or '' }}</td>
+        <td>{{ row.name }}</td>
+        <td class="cert">{{ row.locker_number or '' }}</td>
+        {% for cell in (row.fit_test, row.cartridge) %}
+        <td class="cert"
+            {% if theme.STATUS_FILL[cell.status] %}style="background:#{{ theme.STATUS_FILL[cell.status] }};color:#{{ theme.STATUS_TEXT[cell.status] }}"{% endif %}>
+          {{ cell.expiry_date or '' }}
+        </td>
+        {% endfor %}
+        <td class="cert">{{ row.boot_size or '' }}</td>
       </tr>
       {% else %}
       <tr><td colspan="5" class="muted">No supervisors on the roster. Select Supervisor when adding or editing a staff member.</td></tr>

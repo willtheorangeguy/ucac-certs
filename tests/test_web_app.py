@@ -510,3 +510,35 @@ def test_locker_reminder_schedule_visible_without_scan(signed_in, database, monk
     page = signed_in.get("/reminders").text
     assert "Fit test" in page and "Cartridge" in page
     assert "2026-10-06" in page and "robin@example.org" in page
+
+
+def test_lockers_use_overview_colours_and_warning_boundaries(signed_in, database, monkeypatch):
+    from bs4 import BeautifulSoup
+    from lss_report import theme
+    from datetime import datetime
+
+    class FixedDatetime:
+        @staticmethod
+        def now(tz):
+            return datetime(2026, 10, 6, tzinfo=tz)
+
+    monkeypatch.setattr("lss_report.web.app.datetime", FixedDatetime)
+    repo = StaffRepository(database)
+    repo.add(name="Expired and Soon", member_code="EXP001", supervisor=True,
+             fit_test_date="2024-10-05", cartridge_date="2021-11-05")
+    repo.add(name="Today and Current", member_code="CUR001", supervisor=True,
+             fit_test_date="2024-10-06", cartridge_date="2021-11-06")
+    repo.add(name="Missing Away", member_code="MIS001", supervisor=True, away=True)
+    response = signed_in.get("/lockers")
+    soup = BeautifulSoup(response.text, "html.parser")
+    rows = {tr.td.get_text(strip=True): tr.find_all("td")
+            for tr in soup.select("tbody tr") if tr.td}
+    assert f"background:#{theme.EXPIRED}" in rows["Expired and Soon"][2]["style"]
+    assert f"background:#{theme.EXPIRING}" in rows["Expired and Soon"][3]["style"]
+    assert f"background:#{theme.EXPIRING}" in rows["Today and Current"][2]["style"]
+    assert "style" not in rows["Today and Current"][3].attrs
+    for cell in rows["Missing Away"][2:4]:
+        assert f"background:#{theme.MISSING}" in cell["style"]
+        assert "color:#FFFFFF" in cell["style"]
+    assert soup.select_one("tbody th").get_text(strip=True) == "Away"
+    assert "Expires within 30 days" in response.text
