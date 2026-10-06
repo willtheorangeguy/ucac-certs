@@ -54,7 +54,8 @@ def test_name_mismatch_is_a_warning_and_keeps_the_awards():
     assert record.error is None
     assert record.name_warning
     assert record.certifications
-    assert record.display_name == "Example Staff Member"
+    assert record.display_name == "Example Staff Membre"
+    assert record.source_name == "Example Staff Member"
 
 
 def test_member_id_mismatch_is_still_fatal():

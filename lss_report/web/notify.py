@@ -123,7 +123,7 @@ class Reminders:
     def send_due(self, due: list[dict], *, dry_run: bool = False) -> list[dict]:
         sent = []
         for entry in due:
-            name = entry["society_name"] or entry["name"]
+            name = entry["name"]
             expiry = date.fromisoformat(entry["expiry_date"])
             body = reminder_text(name, entry["column_code"], expiry, entry["threshold"])
             for channel in self.channels:

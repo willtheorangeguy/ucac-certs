@@ -52,7 +52,7 @@ class Staff:
 
     @property
     def display_name(self) -> str:
-        return self.society_name or self.name
+        return self.name
 
     def as_member(self) -> StaffMember:
         return StaffMember(
@@ -644,17 +644,20 @@ def rows_from_scan(database: Database, scan_id: int, as_of: date | None = None) 
         "SELECT * FROM staff WHERE removed_at IS NULL ORDER BY away, name COLLATE NOCASE"
     )
     by_staff = effective_cells(database, scan_id, as_of or date.today())
-    errors = {
-        note["detail"].split(" (")[0]: note["detail"]
-        for note in database.query(
-            "SELECT detail FROM scan_note WHERE scan_id = ? AND kind = 'error'", (scan_id,)
-        )
-    }
+    # Match historical error notes by member ID, so changing a preferred name
+    # cannot hide a lookup failure. Show the reason beside the current name.
+    errors = {}
+    for note in database.query(
+        "SELECT detail FROM scan_note WHERE scan_id = ? AND kind = 'error'", (scan_id,)
+    ):
+        identity, _, reason = note["detail"].partition("): ")
+        code = identity.rsplit(" (", 1)[-1]
+        errors[code] = reason
     return [
         {
             "staff": _staff(row),
             "cells": by_staff.get(row["id"], {}),
-            "error": errors.get(row["society_name"] or row["name"]),
+            "error": errors.get(row["member_code"]),
         }
         for row in staff_rows
     ]

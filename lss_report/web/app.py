@@ -285,13 +285,13 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
                 return _staff_error(f"{code_2}: {second_result.error}")
         if red_cross_fa:
             certificate = verify_red_cross_number(
-                red_cross_fa, name, expected_column=FIRST_AID
+                red_cross_fa, result.society_name or name, expected_column=FIRST_AID
             )
             if not certificate.ok:
                 return _staff_error(f"Red Cross First Aid {red_cross_fa}: {certificate.error}")
         if red_cross_cpr:
             certificate = verify_red_cross_number(
-                red_cross_cpr, name, expected_column=CPR_C
+                red_cross_cpr, result.society_name or name, expected_column=CPR_C
             )
             if not certificate.ok:
                 return _staff_error(f"Red Cross CPR-C {red_cross_cpr}: {certificate.error}")
@@ -372,15 +372,16 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             second_result = verify_member_code(code_2, name)
             if not second_result.ok:
                 return _staff_error(f"{code_2}: {second_result.error}")
+        matching_name = changes.get("society_name") or member.society_name or name
         if red_cross_fa and red_cross_fa != member.red_cross_fa_number:
             certificate = verify_red_cross_number(
-                red_cross_fa, name, expected_column=FIRST_AID
+                red_cross_fa, matching_name, expected_column=FIRST_AID
             )
             if not certificate.ok:
                 return _staff_error(f"Red Cross First Aid {red_cross_fa}: {certificate.error}")
         if red_cross_cpr and red_cross_cpr != member.red_cross_cpr_number:
             certificate = verify_red_cross_number(
-                red_cross_cpr, name, expected_column=CPR_C
+                red_cross_cpr, matching_name, expected_column=CPR_C
             )
             if not certificate.ok:
                 return _staff_error(f"Red Cross CPR-C {red_cross_cpr}: {certificate.error}")

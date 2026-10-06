@@ -151,3 +151,16 @@ def test_locker_renewal_changes_reminder_schedule(database, settings):
     assert len(scans.due(None, settings.reminder_days, today)) == 1
     repo.update(member.id, actor="manager", fit_test_date="2026-10-06")
     assert scans.due(None, settings.reminder_days, today) == []
+
+
+@pytest.mark.parametrize("column", ["CPR-C", "Fit test", "Cartridge"])
+def test_reminder_email_and_preview_use_preferred_name(staffed, settings, column):
+    channel = RecordingChannel("email")
+    reminders = Reminders(staffed, settings, [channel])
+    entry = _entry(name="Robin Preferred", society_name="Robert Rivers", column_code=column)
+    preview = reminders.send_due([entry], dry_run=True)
+    assert preview[0]["staff"] == "Robin Preferred"
+    assert preview[0]["body"].startswith("Hi Robin,")
+    reminders.send_due([entry])
+    assert channel.sent[0].body.startswith("Hi Robin,")
+    assert "Robert" not in channel.sent[0].body

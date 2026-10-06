@@ -53,7 +53,7 @@ class MemberRecord:
 
     @property
     def display_name(self) -> str:
-        return self.source_name or self.configured_name
+        return self.configured_name
 
     def tracked_certifications(self) -> list[Certification]:
         return [cert for cert in self.certifications if cert.column is not None]

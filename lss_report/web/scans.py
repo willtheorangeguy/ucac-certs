@@ -92,7 +92,8 @@ def _add_red_cross(record: MemberRecord, member: Staff, client: RedCrossClient) 
             continue
         seen.add(number)
         try:
-            certificate = client.fetch(last_name_for(member.display_name), number)
+            matching_name = record.source_name or member.society_name or member.name
+            certificate = client.fetch(last_name_for(matching_name), number)
         except UpstreamError as exc:
             warnings.append(f"{label} certificate {number}: {exc}")
             continue

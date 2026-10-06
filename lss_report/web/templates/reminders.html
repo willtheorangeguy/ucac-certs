@@ -30,7 +30,7 @@
           <tr>
             <td>{{ item.send_on }}</td>
             <td>{{ item.days_until_send }}d</td>
-            <td>{{ item.society_name or item.name }}</td>
+            <td>{{ item.name }}</td>
             <td>{{ item.column_code }} &nbsp;<span class="muted">({{ item.threshold }}d notice)</span></td>
             <td>{{ item.expiry_date }}</td>
             <td>
@@ -64,7 +64,7 @@
           {% for item in history %}
           <tr>
             <td>{{ item.sent_at[:16].replace('T', ' ') }}</td>
-            <td>{{ item.society_name or item.name }}</td>
+            <td>{{ item.name }}</td>
             <td>{{ item.column_code }}</td>
             <td>{{ item.threshold }}d</td>
             <td>{{ item.expiry_date }}</td>

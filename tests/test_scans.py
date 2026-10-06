@@ -194,3 +194,22 @@ def test_a_certificate_that_does_not_validate_is_reported(repos):
 
     notes = scan_repo.notes(scan_repo.latest_complete_id())
     assert any("999999999" in note["detail"] for note in notes if note["kind"] == "redcross")
+
+
+def test_scan_keeps_preferred_name_and_matches_red_cross_using_society_name(repos):
+    staff_repo, scan_repo = repos
+    member = staff_repo.add(name="Robin Preferred", member_code="RRV001", red_cross_number="103575156")
+
+    class DifferentNameSociety(FakeSociety):
+        def fetch(self, person):
+            record = super().fetch(person)
+            record.source_name = "Robert Rivers"
+            return record
+
+    validator = FakeRedCross()
+    grid = run_scan(staff_repo, scan_repo, triggered_by="test",
+                    client=DifferentNameSociety(), red_cross=validator)
+    assert grid.rows[0].name == "Robin Preferred"
+    assert staff_repo.get(member.id).name == "Robin Preferred"
+    assert staff_repo.get(member.id).society_name == "Robert Rivers"
+    assert validator.calls == [("Rivers", "103575156")]
