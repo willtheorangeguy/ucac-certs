@@ -94,9 +94,9 @@
   <table>
     <thead>
       <tr>
-        <th>Name</th><th>Society name</th><th>LS#</th><th>Red Cross CPR-C #</th>
+        <th>Name</th><th>Society Name</th><th>LS#</th><th>Red Cross CPR-C #</th>
         <th>Red Cross First Aid #</th>
-        <th>Email</th><th>Phone</th><th>Away</th><th>Supervisor</th><th></th>
+        <th>Email</th><th>Away</th><th>Supervisor</th><th></th>
       </tr>
     </thead>
     <tbody>
@@ -118,9 +118,8 @@
         <td>{{ member.red_cross_cpr_number or '' }}</td>
         <td>{{ member.red_cross_fa_number or '' }}</td>
         <td>{{ member.email or '' }}</td>
-        <td>{{ member.phone or '' }}</td>
-        <td>{{ 'yes' if member.away else '' }}</td>
-        <td>{{ 'yes' if member.supervisor else '' }}</td>
+        <td>{{ '✓' if member.away else '' }}</td>
+        <td>{{ '✓' if member.supervisor else '' }}</td>
         <td class="actions">
           <button type="button" class="icon-button" title="Certificate copies for {{ member.name }}"
                   aria-label="Certificate copies for {{ member.name }}"
