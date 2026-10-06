@@ -60,6 +60,8 @@
       color:var(--ink); padding:1.25rem; width:min(640px, 92vw); }
     dialog::backdrop { background:rgba(0,0,0,.45); }
     dialog h2 { font-size:1rem; margin:0 0 1rem; }
+    dialog h3 { font-size:.95rem; margin:0 0 .75rem; }
+    hr { border:0; border-top:1px solid var(--line); margin:1.25rem 0; }
     .dialog-actions { display:flex; gap:.5rem; justify-content:flex-end; margin-top:1.25rem; }
     .fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:.75rem; align-items:end; }
     .muted { color:var(--muted); font-size:.85rem; }
@@ -72,6 +74,7 @@
 <header>
   <a href="/" {% if page=='dashboard' %}class="active"{% endif %}>Overview</a>
   <a href="/staff" {% if page=='staff' %}class="active"{% endif %}>Staff</a>
+  <a href="/lockers" {% if page=='lockers' %}class="active"{% endif %}>Lockers</a>
   <a href="/reminders" {% if page=='reminders' %}class="active"{% endif %}>Reminders</a>
   <a href="/diagnostics" {% if page=='diagnostics' %}class="active"{% endif %}>Diagnostics</a>
   <span class="spacer">{{ user }}</span>

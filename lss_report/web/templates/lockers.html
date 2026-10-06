@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% set page = 'lockers' %}
+{% block title %}Lockers{% endblock %}
+{% block content %}
+<h1>Lockers</h1>
+<p class="muted">Supervisor locker information. Update details by editing a member on the <a href="/staff">Staff page</a>.</p>
+<div class="panel scroll">
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Locker number</th><th>Fit test expiry</th><th>Cartridge expiry</th><th>Boot size</th></tr>
+    </thead>
+    <tbody>
+      {% for member in staff %}
+      <tr>
+        <td>{{ member.display_name }}</td>
+        <td>{{ member.locker_number or '' }}</td>
+        <td>{{ member.fit_test_expiry or '' }}</td>
+        <td>{{ member.cartridge_expiry or '' }}</td>
+        <td>{{ member.boot_size or '' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">No supervisors on the roster. Select Supervisor when adding or editing a staff member.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

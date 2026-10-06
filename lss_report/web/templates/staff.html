@@ -5,6 +5,7 @@
 {# One panel for both adding and editing. `member` is None when adding, which is the
    only difference between the two: same fields, same validation, same route shape. #}
 {% macro panel(key, member, dates) %}
+  <h3>Staff details</h3>
   <div class="fields">
     <div>
       <label for="name-{{ key }}">Name</label>
@@ -37,11 +38,9 @@
   </div>
   <p><label><input type="checkbox" name="away" value="true" {% if member and member.away %}checked{% endif %}> Away </label></p>
 
-  <p class="muted" style="margin:1.25rem 0 .5rem">
-    Certification dates entered by hand, for courses taken through a third party. Enter the
-    date the course was passed; the expiry is worked out from it. A date left blank is
-    cleared, and an entry only takes effect where it beats what the last scan found.
-  </p>
+  <p><label><input type="checkbox" name="supervisor" value="true" {% if member and member.supervisor %}checked{% endif %}> Supervisor</label></p>
+  <hr>
+  <h3>Lifeguarding certification dates</h3>
   <div class="fields">
     {% for column in columns %}
     <div>
@@ -50,6 +49,28 @@
              name="manual_{{ column.code }}" value="{{ dates.get(column.code, '') }}">
     </div>
     {% endfor %}
+  </div>
+  <hr>
+  <h3>Locker information</h3>
+  <div class="fields">
+    <div>
+      <label for="locker-{{ key }}">Locker number</label>
+      <input id="locker-{{ key }}" type="text" name="locker_number" value="{{ member.locker_number or '' if member else '' }}">
+    </div>
+    <div>
+      <label for="fit-test-{{ key }}">Fit test date</label>
+      <input id="fit-test-{{ key }}" type="date" name="fit_test_date" value="{{ member.fit_test_date or '' if member else '' }}">
+      <span class="muted">Expires after 2 years</span>
+    </div>
+    <div>
+      <label for="cartridge-{{ key }}">Cartridge issue date</label>
+      <input id="cartridge-{{ key }}" type="date" name="cartridge_date" value="{{ member.cartridge_date or '' if member else '' }}">
+      <span class="muted">Expires after 5 years</span>
+    </div>
+    <div>
+      <label for="boot-{{ key }}">Boot size</label>
+      <input id="boot-{{ key }}" type="text" name="boot_size" value="{{ member.boot_size or '' if member else '' }}">
+    </div>
   </div>
 {% endmacro %}
 
@@ -74,7 +95,7 @@
       <tr>
         <th>Name</th><th>Society name</th><th>LS#</th><th>Red Cross CPR-C #</th>
         <th>Red Cross First Aid #</th>
-        <th>Email</th><th>Phone</th><th>Away</th><th></th>
+        <th>Email</th><th>Phone</th><th>Away</th><th>Supervisor</th><th></th>
       </tr>
     </thead>
     <tbody>
@@ -98,6 +119,7 @@
         <td>{{ member.email or '' }}</td>
         <td>{{ member.phone or '' }}</td>
         <td>{{ 'yes' if member.away else '' }}</td>
+        <td>{{ 'yes' if member.supervisor else '' }}</td>
         <td class="actions">
           <button type="button" class="icon-button" title="Certificate copies for {{ member.name }}"
                   aria-label="Certificate copies for {{ member.name }}"

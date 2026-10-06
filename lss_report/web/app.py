@@ -14,7 +14,7 @@ from fastapi.templating import Jinja2Templates
 # former, which is not an instance of the latter.
 from starlette.datastructures import UploadFile
 
-from ..awards import COLUMNS, CPR_C, FIRST_AID
+from ..awards import COLUMNS, CPR_C, FIRST_AID, add_years
 from ..excel import build_first_aiders_workbook, build_workbook
 from ..grid import Grid
 from ..models import CellStatus
@@ -220,6 +220,13 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             error=error,
         )
 
+    @app.get("/lockers", response_class=HTMLResponse)
+    def lockers_page(request: Request, user: str = Depends(current_user)):
+        return render(
+            request, "lockers.html", user=user,
+            staff=[member for member in staff_repo.active() if member.supervisor],
+        )
+
     @app.post("/staff")
     async def staff_add(request: Request, user: str = Depends(current_user)):
         form = await request.form()
@@ -245,6 +252,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             return _staff_error("The Red Cross CPR-C number must be digits only.")
         try:
             manual = _manual_dates(form)
+            lockers = _locker_fields(form)
         except ValueError as exc:
             return _staff_error(str(exc))
 
@@ -280,6 +288,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
                 red_cross_number=red_cross_fa,
                 red_cross_cpr_number=red_cross_cpr,
                 away=bool(form.get("away")),
+                **lockers,
                 actor=user,
             )
         except DuplicateMemberCode as exc:
@@ -316,10 +325,12 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
         # bottom of the panel cannot leave the details above it half-saved.
         try:
             manual = _manual_dates(form)
+            lockers = _locker_fields(form)
         except ValueError as exc:
             return _staff_error(str(exc))
 
         changes = {
+            **lockers,
             "name": name,
             "email": str(form.get("email", "")).strip() or None,
             "away": int(bool(form.get("away"))),
@@ -363,6 +374,22 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
         for column_code, certified in manual.items():
             staff_repo.set_manual_cert(staff_id, column_code, certified, actor=user)
         return RedirectResponse("/staff", status_code=303)
+
+    def _locker_fields(form) -> dict:
+        fields = {"supervisor": bool(form.get("supervisor"))}
+        for field in ("locker_number", "boot_size", "fit_test_date", "cartridge_date"):
+            raw = str(form.get(field, "")).strip()
+            if field.endswith("_date") and raw:
+                label = "Fit test" if field == "fit_test_date" else "Cartridge issue"
+                try:
+                    parsed = date.fromisoformat(raw)
+                    years = 2 if field == "fit_test_date" else 5
+                    add_years(parsed, years)
+                except ValueError:
+                    raise ValueError(f"{label} date must be a real date with a valid expiry.") from None
+                raw = parsed.isoformat()
+            fields[field] = raw or None
+        return fields
 
     def _manual_dates(form) -> dict[str, date | None]:
         """The panel's hand-entered dates, one per column. ``None`` clears an entry."""

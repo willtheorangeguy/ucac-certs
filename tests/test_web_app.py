@@ -10,6 +10,7 @@ from lss_report.web.scans import Verification
 PROTECTED = [
     "/",
     "/staff",
+    "/lockers",
     "/reminders",
     "/diagnostics",
     "/export.xlsx",
@@ -443,3 +444,55 @@ def test_the_roster_lists_the_copies_a_member_has(signed_in, member):
     page = signed_in.get("/staff")
     assert "bronze-cross.pdf" in page.text
     assert "fa-file-circle-plus" in page.text
+
+
+def test_lockers_show_only_active_supervisors(signed_in, database):
+    repo = StaffRepository(database)
+    repo.add(name="Supervisor Person", member_code="SUP001", supervisor=True,
+             locker_number="007", fit_test_date="2024-10-06",
+             cartridge_date="2022-10-06", boot_size="10")
+    repo.add(name="Regular Person", member_code="REG001")
+    removed = repo.add(name="Removed Person", member_code="REM001", supervisor=True)
+    repo.remove(removed.id, actor="manager")
+    response = signed_in.get("/lockers")
+    assert response.status_code == 200
+    for text in ("Supervisor Person", "007", "2026-10-06", "2027-10-06", "Boot size"):
+        assert text in response.text
+    assert "Regular Person" not in response.text
+    assert "Removed Person" not in response.text
+
+
+def test_locker_fields_saved_cleared_and_invalid_dates_rejected(signed_in, database):
+    repo = StaffRepository(database)
+    member = repo.add(name="Robin Rivers", member_code="RRV001")
+    url = f"/staff/{member.id}/edit"
+    fields = {"supervisor": "true", "locker_number": "007", "fit_test_date": "2024-02-29",
+              "cartridge_date": "2022-10-06", "boot_size": "9.5"}
+    assert signed_in.post(url, data=fields).headers["location"] == "/staff"
+    saved = repo.get(member.id)
+    assert saved.supervisor and saved.locker_number == "007"
+    assert saved.fit_test_expiry.isoformat() == "2026-02-28"
+    assert saved.cartridge_expiry.isoformat() == "2027-10-06"
+    response = signed_in.post(url, data={**fields, "name": "Changed", "fit_test_date": "bad"})
+    assert "error=" in response.headers["location"]
+    assert repo.get(member.id).name == "Robin Rivers"
+    assert signed_in.post(url, data={}).headers["location"] == "/staff"
+    saved = repo.get(member.id)
+    assert not saved.supervisor
+    assert saved.locker_number is saved.fit_test_date is saved.cartridge_date is saved.boot_size is None
+
+
+def test_add_staff_saves_locker_fields(signed_in, database, monkeypatch):
+    monkeypatch.setattr("lss_report.web.app.verify_member_code",
+                        lambda *args: Verification(ok=True, society_name="Robin Rivers"))
+    response = signed_in.post("/staff", data={"name": "Robin Rivers", "member_code": "RRV001",
+        "supervisor": "true", "locker_number": "15", "fit_test_date": "2026-10-06",
+        "cartridge_date": "2026-10-06", "boot_size": "11"})
+    assert response.headers["location"] == "/staff"
+    member = StaffRepository(database).active()[0]
+    assert member.supervisor and member.boot_size == "11"
+    assert member.fit_test_expiry.isoformat() == "2028-10-06"
+    page = signed_in.get("/staff").text
+    assert "Lifeguarding certification dates" in page
+    assert "Locker information" in page
+    assert "Certification dates entered by hand" not in page
