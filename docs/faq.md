@@ -134,6 +134,17 @@ Questions about why the tool behaves the way it does. Error messages with a fix 
 
 ## The roster
 
+??? question "Can I use a preferred name instead of the Lifesaving Society name?"
+
+    Yes. Enter it in **Name** when adding or editing the member on **Staff**. That name
+    appears in pages, dialogs, reminder emails, and every Excel and PDF download. The
+    Society spelling is stored separately for comparison and certificate matching.
+    Scans never overwrite the preferred name.
+
+    To use the Society spelling instead, select **Use this** in the **Society Name**
+    column. That explicitly changes the preferred name. Both edits and adoption take
+    effect on the next view or download without waiting for another scan.
+
 ??? question "I removed the wrong person. Can I undo it?"
 
     Not from the interface. Removal is a soft delete, so their historical scan results are

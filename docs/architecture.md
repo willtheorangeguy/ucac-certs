@@ -94,6 +94,20 @@ A failed Red Cross lookup is a **warning**, not an error. Society awards and any
 Cross certificate are unaffected; the corresponding cell falls back to its other sources, and the reason lands in
 Diagnostics under the `redcross` kind. An outage at the Red Cross cannot fail a scan.
 
+### Preferred names
+
+`MemberRecord.display_name` returns `configured_name`; `Staff.display_name` returns the
+roster's `name`. Grid rows, HTML pages, all six download renderers, and reminder emails
+use these preferred names. The Society name remains a separate value for warnings,
+matching, and the Staff page's **Use this** action. A scan updates only `society_name`;
+explicit adoption copies it to `name`.
+
+Web exports read the current preferred name from the roster, even for an older scan.
+Reminder history joins the current staff row. Scan errors are associated by member ID,
+so changing a name cannot hide a recorded lookup failure. Red Cross scanning matches on
+the Society profile's name when available, and add/edit verification uses the stored or
+newly verified Society name instead of treating the preferred display name as a match key.
+
 ### Row building
 
 `grid.build_grid` turns records into rows. Per column it picks the best award: a confirmed

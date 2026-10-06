@@ -130,7 +130,12 @@ before anything is written, so a typo is caught at entry rather than appearing a
 row after the next scan. A scan combines awards from both Society profiles into the same
 staff row. On an edit each check runs only if its own field changed, so a save
 that touches neither reaches no network. Where the Society spells a name differently, the
-roster screen offers to adopt its spelling.
+roster screen offers to adopt its spelling. The **Name** entered in the staff dialog is
+the preferred name throughout the pages, certification and locker downloads, and reminder
+emails. The Society name stays available for comparison and certificate matching; a scan
+never replaces the preferred name. Select **Use this** in **Society Name** to adopt that
+spelling explicitly. Editing the preferred name updates displayed and exported rows
+immediately, including reports built from an earlier scan.
 
 The file button on a row holds scanned or photographed copies of that person's
 certificates — a PDF or an image, up to 10 MB each. An upload is checked by its own leading
@@ -229,7 +234,7 @@ To rebuild it from a certification form PDF:
 ```
 
 Names are only a cross-check — lookups key off the Member ID. A name that differs from the
-Society's record is reported as a warning and the Society's spelling is used; a Member ID
+Society's record is reported as a warning, and the configured name is retained for display; a Member ID
 that returns someone else is a hard error.
 
 ## Diagnostics

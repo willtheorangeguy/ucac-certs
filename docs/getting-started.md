@@ -102,6 +102,15 @@ Results were written to the SQLite database as a numbered scan, which is what th
 dashboard, the Excel export, the PDF export, and the reminder schedule all read from.
 Nothing is fetched again until the next scan.
 
+## For managers: preferred names
+
+The **Name** entered on **Staff** is used on the Overview, Lockers, reminder schedule and
+history, certificate-copy dialogs, all Excel and PDF downloads, and reminder emails.
+A scan records the Society name for matching and comparison without replacing that name.
+Edit **Name** to change it, or select **Use this** beside the Society spelling to adopt it.
+The next page view or download uses the saved name even if its awards came from an older
+scan. The command-line report likewise displays names from its configured roster file.
+
 ## For managers: supervisor lockers
 
 Open a member's pencil button on **Staff**. The dialog has three sections separated by

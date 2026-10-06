@@ -12,7 +12,7 @@ is safe to run anywhere, including CI.
 ```
 
 ```text
-283 passed, 1 warning in 16.67s
+299 passed, 1 warning in 16.66s
 ```
 
 Configuration lives in `pyproject.toml`: `testpaths` is `tests`, and `addopts` is `-q`, so
@@ -44,6 +44,7 @@ python -m pytest -k "expiry or reminder" -v
 | `test_pdf.py` | Certification and first aider PDFs, markup escaping, and a large first aider roster kept to one page |
 | `test_lockers.py` | Five-column workbook and PDF exports, expiry colours, literal locker numbers, empty reports, and PDF pagination |
 | `test_settings.py` | Environment validation, schedule hours, email configuration, and upload path defaults |
+| `test_preferred_names.py` | Preferred names in pages, dialogs, reminder history, all six exports, explicit adoption, name edits, scan errors, and Red Cross matching |
 | `test_config.py` | Dotenv parsing, `staff.json` validation and its rejections |
 | `test_cli.py` | The `lss-report` entry point |
 | `test_repository.py` | Roster CRUD, soft delete, scan storage, manual dates, the schema migration, the reminder schedule |

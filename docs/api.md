@@ -76,7 +76,7 @@ the same dialog, empty or filled in:
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `name` | string | yes | Roster spelling. Whitespace is collapsed. |
+| `name` | string | yes | Preferred display name for pages, all exports, and reminder emails. Whitespace is collapsed. |
 | `member_code` | string | yes | Lifesaving Society member ID. Upper-cased; rejected unless alphanumeric. |
 | `member_code_2` | string | no | Second Society member ID for staff whose awards are split across two profiles. Validated like the primary ID; blank clears it. |
 | `red_cross_cpr_number` | string | no | Canadian Red Cross CPR-C certificate number. Digits only; validated as CPR-C. Blank clears it. |
@@ -115,6 +115,14 @@ A manual date is an additional source rather than an override. It competes with 
 the last scan found on the same terms the grid already uses — a purpose-issued award beats
 a provisional credit, and otherwise the later expiry wins — so entering an old date cannot
 hide a current award. It applies immediately, without waiting for the next scan.
+
+The preferred name is `staff.name`. The stored `society_name` is used for comparison and
+certificate matching. Scans update `society_name` without changing `name`.
+`POST /staff/{staff_id}/adopt-name`, exposed as **Use this** on Staff, explicitly copies
+the Society spelling into `name`. Reports built from an earlier scan use the current
+preferred name on the next request. Reminder history also displays the current staff name.
+Red Cross validation uses the Society name when available, falling back to the preferred
+name when no Society name is known.
 
 The shared dialog has staff details, lifeguarding dates, and locker information sections.
 Both role flags appear as checkmarks in the staff table. Locker dates are independent of
