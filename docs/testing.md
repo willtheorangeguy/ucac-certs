@@ -1,6 +1,7 @@
 # Testing
 
-The suite is 229 tests across 18 files and takes about ten seconds. It makes no network
+The suite covers certification scans, roster editing, supervisor lockers, downloads, and
+reminders. A full run takes about fifteen seconds. It makes no network
 calls — the Society and the Red Cross are each represented by stored HTML fixtures — so it
 is safe to run anywhere, including CI.
 
@@ -11,14 +12,14 @@ is safe to run anywhere, including CI.
 ```
 
 ```text
-229 passed, 2 warnings in 7.22s
+283 passed, 1 warning in 16.67s
 ```
 
 Configuration lives in `pyproject.toml`: `testpaths` is `tests`, and `addopts` is `-q`, so
 plain `pytest` from the repository root does the right thing.
 
-Both warnings are deprecation notices from dependencies — `httpx` in the Starlette test
-client, and an `anyio` alias — not from this project.
+The warning in this run is a dependency deprecation notice about `httpx` in the Starlette
+test client. Warning counts and timings depend on installed dependency versions.
 
 ### Narrower runs
 
@@ -40,17 +41,35 @@ python -m pytest -k "expiry or reminder" -v
 | `test_redcross.py` | Validator result parsing, the three-year working-back, retries, digits-only numbers |
 | `test_scans.py` | The two sources merged into one grid, and a Red Cross failure staying a warning |
 | `test_excel.py` | Fill colours landing on the right cells, real date values, the Diagnostics sheet |
-| `test_pdf.py` | The grid renders, and fits one page |
+| `test_pdf.py` | Certification and first aider PDFs, markup escaping, and a large first aider roster kept to one page |
+| `test_lockers.py` | Five-column workbook and PDF exports, expiry colours, literal locker numbers, empty reports, and PDF pagination |
+| `test_settings.py` | Environment validation, schedule hours, email configuration, and upload path defaults |
 | `test_config.py` | Dotenv parsing, `staff.json` validation and its rejections |
 | `test_cli.py` | The `lss-report` entry point |
 | `test_repository.py` | Roster CRUD, soft delete, scan storage, manual dates, the schema migration, the reminder schedule |
 | `test_auth.py` | Code issue and redeem, single use, expiry, keyed digest, rate limiting on both issuing and guessing |
-| `test_notify.py` | Resend delivery, reminder text, deduplication |
-| `test_scheduler.py` | Weekly and daily firing, and that neither can double-fire |
+| `test_notify.py` | Resend delivery, certification and locker reminder text, all three thresholds, deduplication, and renewal scheduling |
+| `test_scheduler.py` | Weekly and daily firing, duplicate prevention, and locker reminders before the first scan |
 | `test_files.py` | What an upload has to be to be stored, the size limit, and generated names |
-| `test_web_app.py` | Routes, redirects, roster verification at entry, the edit panel, certificate copies |
+| `test_web_app.py` | Protected routes, roster verification, staff table checkmarks, locker fields and validation, supervisor filtering, colour boundaries, and downloads without a scan |
 | `test_web_render.py` | Every page rendered against stored scan data |
 | `test_security.py` | The properties that must hold before this is exposed to the internet |
+
+### Locker regression checks
+
+```bash
+python -m pytest tests/test_lockers.py tests/test_web_app.py tests/test_notify.py tests/test_repository.py tests/test_scheduler.py
+```
+
+These tests cover the same five columns in the page and exports, two- and five-year
+expiry calculations, leap-day anniversaries, missing/expired/current cells, and the
+inclusive 30-day warning boundary. They also check legacy database migration, invalid
+calendar dates and out-of-range expiry years, immediate renewal scheduling, preserving
+locker details when Supervisor is cleared, and omitting removed staff.
+
+Excel assertions inspect date types, cell fills, and leading zeroes. PDF checks verify
+table content and colours, markup escaping, empty reports, and pagination. Anonymous
+callers cannot access the page or either download. No scan or outbound lookup is needed.
 
 ## Fixtures
 
@@ -79,7 +98,7 @@ to normalise before it can read anything.
 
 ## The security tests
 
-`test_security.py` is worth reading on its own. It asserts twelve properties rather than
+`test_security.py` is worth reading on its own. It asserts security properties rather than
 exercising features:
 
 - Every write endpoint rejects an anonymous caller and writes nothing.

@@ -121,8 +121,9 @@ unfamiliar hosts as phishing, and a code gives a link scanner nothing to follow.
 One panel does both jobs. **Add a staff member** opens it empty; the pencil on a row opens it
 filled in. Its first row holds name and up to two LS#s; its second holds separate Red Cross
 CPR-C and Standard First Aid certificate numbers plus email. The phone value remains in the
-database for compatibility but is no longer shown. The panel also holds the away flag and a
-manual date for each of the six columns.
+database for compatibility but is no longer shown. Away and Supervisor checkboxes share one row.
+The three sections hold staff details, manual dates for the six certifications, and locker
+information. The table uses checkmarks for Away and Supervisor and hides the phone column.
 
 Each LS# is verified against the Society and each certificate number against the Red Cross
 before anything is written, so a typo is caught at entry rather than appearing as an empty
@@ -154,8 +155,9 @@ each recipient separately). Staff are reminded at 30, 14 and 7 days before expir
 Anyone without an email address on their roster entry is skipped.
 
 Sending is entirely automatic — there is no manual send. The **Reminders** page is read-only:
-the schedule for the next 60 days above, everything already sent below, both drawn from the
-latest scan and `notification_log`.
+the schedule for the next 60 days above, everything already sent below. It combines the
+latest completed scan, manual certification dates, supervisor locker dates, and
+`notification_log`. Manual and locker dates work before the first scan.
 
 Delivery goes through a `Channel` protocol, so a second channel can be added later without
 touching the scheduler or the dedupe logic.

@@ -26,6 +26,8 @@ project is built.
   three years printed on the card.
 - Certifications earned through a third party entered by hand, competing with the
   scanned award rather than overriding it.
+- Supervisor lockers with locker numbers, mask fit test and cartridge expiries, and
+  boot sizes. The page and its Excel and PDF downloads use the same expiry colours.
 - Automatic email reminders at 30, 14, and 7 days before expiry, deduplicated so a
   restart or a repeat scan cannot send the same reminder twice.
 - A diagnostics page listing failed lookups, name mismatches, unrecognised awards, and

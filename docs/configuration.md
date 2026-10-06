@@ -102,6 +102,22 @@ the course date before the table above is applied. It describes the Red Cross's 
 three-year term, not Aquatic Centre policy — change it only if the Red Cross changes how
 long a card runs.
 
+## Locker validity periods
+
+Supervisor locker dates are entered by hand on the Staff page and stored in `staff`.
+Their validity periods live in `lss_report/web/repository.py`:
+
+| Field | Enter | Example | Computed expiry |
+|---|---|---|---|
+| `fit_test_date` | Date the mask fit test was passed | `2024-10-06` | `2026-10-06`, two years later |
+| `cartridge_date` | Date the cartridge was issued | `2022-10-06` | `2027-10-06`, five years later |
+
+The shared `add_years` helper moves February 29 to February 28 when the target year is not
+leap. These dates use the same 30-day warning threshold and 30-, 14-, and 7-day reminder
+ladder as certification dates. Locker reminders require an active Supervisor with an
+email address, and run without a certification scan. Clearing either date stops its
+reminders. Changing a date recalculates expiry and the reminder schedule immediately.
+
 ## Example configuration
 
 A complete local development file:

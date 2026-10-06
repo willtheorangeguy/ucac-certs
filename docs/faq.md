@@ -129,8 +129,8 @@ Questions about why the tool behaves the way it does. Error messages with a fix 
     completed scan. A certification renewed since the last scan, or a person added since,
     won't appear until the next scan runs.
 
-    A date entered by hand is the exception: it is folded in on read, so it moves the
-    schedule the moment it is saved.
+    Manual certification dates and supervisor locker dates move the schedule the moment
+    they are saved. Both work before the first scan.
 
 ## The roster
 
@@ -183,6 +183,34 @@ Questions about why the tool behaves the way it does. Error messages with a fix 
     Nothing reads them. The delivery layer is a `Channel` protocol with one implementation,
     so a second channel can be added later without touching the scheduler or the
     deduplication logic.
+
+## Lockers
+
+??? question "Why isn't a staff member on the Lockers page?"
+
+    Edit their entry on **Staff** and select **Supervisor**. Only active supervisors
+    appear. Away supervisors remain on the page under an **Away** divider; removed staff
+    do not appear in the page or either download.
+
+??? question "Do I enter the fit test expiry or the test date?"
+
+    Enter the date the test was passed, and the date the cartridge was issued. The app
+    adds two years for a fit test and five years for a cartridge. For example, a test
+    dated `2024-10-06` expires `2026-10-06`. A blank field means no date on record and
+    appears grey. Today through 30 days ahead is yellow; a date before today is red.
+
+??? question "Do locker downloads and reminders need a scan first?"
+
+    No. **Download Excel** and **Download PDF** read the current supervisor roster, with
+    the same five columns and expiry colours as the page. The PDF repeats its headings
+    when the roster spans pages. Fit test and cartridge reminders use the same 30-, 14-,
+    and 7-day ladder as certifications, even before a scan. An email address is required.
+
+??? question "What happens when I clear Supervisor?"
+
+    The member leaves the Lockers page and downloads, and locker reminders stop. Their
+    locker details remain stored when submitted with the form. Clearing a fit test or
+    cartridge date stops reminders for that item instead.
 
 ## Access
 

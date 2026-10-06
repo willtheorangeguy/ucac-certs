@@ -6,9 +6,9 @@ computed here — and almost every design decision below follows from that.
 
 ## Overview
 
-A scan is the only thing that touches the network. Everything else reads stored results
-out of SQLite, so the dashboard, the exports, and the reminder pass all agree with each
-other by construction.
+Society and Red Cross lookups happen during roster verification and scans. Reports read
+SQLite; the daily reminder pass reads stored dates and sends email through Resend.
+Supervisor lockers are entered by hand and need no scan.
 
 ```mermaid
 graph LR
@@ -18,7 +18,7 @@ graph LR
   C2 -->|award title and expiry| A
   A -->|Certification records| G[grid.build_grid]
   G -->|MemberRow per staff| D[(SQLite)]
-  M[Manual dates<br>entered by hand] --> D
+  M[Manual dates<br>entered by hand] -->|save dates| D
   D -->|effective cells| W[Web dashboard]
   D -->|effective cells| X[Excel and PDF export]
   D -->|due thresholds| R[Reminder pass]
@@ -117,7 +117,26 @@ policy is shorter than the Society's and every staff member would otherwise disa
 
 `excel.py` and `pdf.py` are two renderers over the same `Grid`. `theme.py` holds the fill
 colours sampled from the original hand-maintained form, so the generated sheet matches what
-staff already read. The PDF is portrait letter, sized so the whole overview fits one page.
+staff already read. PDFs use portrait letter pages. Large certification and locker tables
+paginate; the first aider posting chart is scaled to fit one page.
+
+### Supervisor locker reports
+
+`lockers.py` defines `LockerReport`, `LockerRow`, and `LockerExpiry`, shared by the page and
+both download renderers. The route reads active supervisors at request time, computes
+expiry from `Staff.fit_test_date` and `Staff.cartridge_date`, and uses the current
+`America/Edmonton` date. `LockerExpiry.for_date` delegates to `grid.status_for`, so the
+page, Excel, and PDF share the same boundaries and `theme.STATUS_FILL` colours.
+
+Lockers always have five columns. Workbook dates are real Excel dates, locker numbers
+retain leading zeroes, and text beginning with `=` remains literal. PDF text is escaped,
+large rosters paginate, and column headings repeat. Neither export requires a scan.
+
+`ScanRepository._reminder_rows` adds fit test and cartridge expiries for active
+supervisors to the effective certification cells. With no completed scan, manual
+certifications and locker dates still feed `due` and `upcoming`. Both locker dates use
+`notification_log` and the existing reminder ladder; the mail text asks staff to book a
+new fit test or arrange a cartridge replacement.
 
 ### The web application
 
@@ -180,7 +199,7 @@ table untouched and a new column would otherwise never appear in production.
 
 | Table | Holds |
 |---|---|
-| `staff` | The roster of record, including separate Red Cross First Aid and CPR-C certificate numbers. Soft-deleted via `removed_at`. |
+| `staff` | The roster of record, including separate Red Cross First Aid and CPR-C numbers, the Supervisor flag, locker number, fit test and cartridge issue dates, and boot size. Soft-deleted via `removed_at`. |
 | `manual_cert` | Certification dates entered by hand, one per staff member per column. |
 | `certificate_file` | An uploaded copy of a certificate: its own name, kind, size, uploader, and the generated name its bytes are stored under. |
 | `scan` | One row per scan: start, finish, status, who triggered it. |
@@ -191,7 +210,7 @@ table untouched and a new column would otherwise never appear in production.
 | `notification_log` | Every reminder sent. Doubles as the deduplication key. |
 | `audit` | Every roster change, with actor and timestamp. |
 
-Two indexes carry design intent rather than performance:
+Three indexes carry design intent rather than performance:
 
 ```sql
 CREATE UNIQUE INDEX staff_active_code
@@ -252,8 +271,9 @@ lss_report/
 ├── redcross.py        Red Cross validator client and result parser
 ├── models.py          StaffMember, Certification, MemberRecord, CellStatus
 ├── grid.py            Row building, best-award selection, status thresholds
-├── excel.py           openpyxl workbook, plus a Diagnostics sheet
-├── pdf.py             reportlab portrait grid
+├── lockers.py         Supervisor report rows and shared expiry status
+├── excel.py           Certification, first aider, and locker workbooks
+├── pdf.py             Certification, first aider, and locker PDFs
 ├── theme.py           Fill colours sampled from the original form
 ├── config.py          Dotenv loading and staff.json validation
 ├── cli.py             lss-report, for maintenance and debugging
@@ -266,7 +286,7 @@ lss_report/
 scripts/
 ├── extract_roster.py  Rebuilds staff.json from a certification form PDF
 └── run-local.ps1      Venv, install, live scan, write report.pdf and report.xlsx
-tests/                 229 tests, no network access
+tests/                 Offline tests, including supervisor lockers and downloads
 ```
 
 ## Design decisions

@@ -102,6 +102,32 @@ Results were written to the SQLite database as a numbered scan, which is what th
 dashboard, the Excel export, the PDF export, and the reminder schedule all read from.
 Nothing is fetched again until the next scan.
 
+## For managers: supervisor lockers
+
+Open a member's pencil button on **Staff**. The dialog has three sections separated by
+lines: staff details, lifeguarding certification dates, and locker information.
+**Away** and **Supervisor** sit beside each other in staff details. Select **Supervisor**
+to include that member on **Lockers**. The staff table shows a checkmark for either flag
+when selected; phone numbers are no longer displayed.
+
+Enter the locker number, fit test date, cartridge issue date, and boot size in
+**Locker information**, then select **Save**. Enter the dates the test was passed and the
+cartridge was issued. A fit test dated `2024-10-06` expires `2026-10-06`; a cartridge
+issued `2022-10-06` expires `2027-10-06`. Leap-day anniversaries fall on February 28 when
+the expiry year has no February 29.
+
+**Lockers** shows five columns: **Name**, **Locker Number**, **Fit Test Expiry**,
+**Cartridge Expiry**, and **Boot Size**. Red means expired, yellow means expiry today or
+within 30 days, and grey means the date is missing. Away supervisors appear below an
+**Away** divider. **Download Excel** and **Download PDF** export the same values and
+colours; locker numbers such as `007` keep their leading zeroes.
+
+The page, downloads, and locker reminders work before the first scan. Supervisors with an
+email address receive notices 30, 14, and 7 days before either expiry. Saving a renewal
+date changes its reminder schedule immediately. Clearing a date stops that item's
+reminders. Clearing **Supervisor** hides the member from Lockers and stops locker
+reminders while preserving the locker fields submitted with the form.
+
 ## Next steps
 
 - [Configuration](configuration.md) — every environment variable, and the schedule

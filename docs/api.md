@@ -82,8 +82,13 @@ the same dialog, empty or filled in:
 | `red_cross_cpr_number` | string | no | Canadian Red Cross CPR-C certificate number. Digits only; validated as CPR-C. Blank clears it. |
 | `red_cross_fa_number` | string | no | Canadian Red Cross Standard First Aid certificate number. Digits only; validated as Standard First Aid. Blank clears it. |
 | `email` | string | no | Reminder address. Without one, the member is silently skipped by every reminder. |
-| `phone` | string | no | Legacy API field, stored but unused. It is no longer shown in the staff panel; omitting it preserves the stored value. |
+| `phone` | string | no | Legacy API field, stored but unused. It is no longer shown in the staff panel or table; omitting it preserves the stored value. |
 | `away` | boolean | no | Moves the member into the "Away" section. |
+| `supervisor` | checkbox | no | Send `true` when checked; omit when unchecked. Includes the member in Lockers and enables locker reminders. |
+| `locker_number` | string | no | Locker identifier, such as `007`. Preserves leading zeroes; blank clears it. |
+| `fit_test_date` | date | no | Test date, such as `2024-10-06`. Expiry is two years later. Blank clears it. |
+| `cartridge_date` | date | no | Issue date, such as `2022-10-06`. Expiry is five years later. Blank clears it. |
+| `boot_size` | string | no | Boot size, such as `9.5`. Blank clears it. |
 | `manual_<CODE>` | date | no | An `ISO 8601` certification date entered by hand, one field per column — `manual_FA`, `manual_CPR-C`, and so on. Blank clears the entry. |
 
 On an add, every member ID and certificate number is verified before anything is
@@ -102,12 +107,60 @@ The Red Cross CPR-C number must be digits only.
 The Red Cross Standard First Aid number must be digits only.
 Red Cross 999999999: No Red Cross certificate matches that number and last name.
 FA manual date must be a real date.
+Fit test date must be a real date with a valid expiry.
+Cartridge issue date must be a real date with a valid expiry.
 ```
 
 A manual date is an additional source rather than an override. It competes with whatever
 the last scan found on the same terms the grid already uses — a purpose-issued award beats
 a provisional credit, and otherwise the later expiry wins — so entering an old date cannot
 hide a current award. It applies immediately, without waiting for the next scan.
+
+The shared dialog has staff details, lifeguarding dates, and locker information sections.
+Both role flags appear as checkmarks in the staff table. Locker dates are independent of
+certification scans. Clearing `supervisor` stops locker reminders and hides the member
+from Lockers. Locker details submitted with the form remain stored. Blank or omitted
+locker fields clear their stored values; an omitted `supervisor` field clears the flag.
+
+### Lockers
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/lockers` | session | Active supervisors' names, locker numbers, fit test expiries, cartridge expiries, and boot sizes. |
+| `GET` | `/lockers.xlsx` | session | The same five columns in an Excel workbook with real dates and expiry colours. |
+| `GET` | `/lockers.pdf` | session | The same five columns in a portrait PDF; large rosters paginate with repeated headings. |
+
+All three work without a completed scan. They read the active roster at request time and
+calculate status against the current date in `America/Edmonton`. Removed staff and staff
+without the Supervisor flag are excluded. Away supervisors appear in a separate section.
+Missing dates are grey, dates before today are red, and dates from today through 30 days
+ahead are yellow. Later dates have no fill.
+
+With a signed-in session in `COOKIE`, save locker details through the existing edit route:
+
+```bash
+curl -i -b "lss_session=$COOKIE" --data-urlencode "supervisor=true" --data-urlencode "locker_number=007" --data-urlencode "fit_test_date=2024-10-06" --data-urlencode "cartridge_date=2022-10-06" --data-urlencode "boot_size=9.5" http://127.0.0.1:8000/staff/1/edit
+```
+
+```text
+HTTP/1.1 303 See Other
+location: /staff
+```
+
+The edit endpoint replaces the optional fields in its shared form. Include existing
+email, secondary member ID, certificate numbers, and manual dates when preserving them.
+
+```bash
+curl -b "lss_session=$COOKIE" http://127.0.0.1:8000/lockers -o lockers.html
+curl -b "lss_session=$COOKIE" http://127.0.0.1:8000/lockers.xlsx -o lockers.xlsx
+curl -b "lss_session=$COOKIE" http://127.0.0.1:8000/lockers.pdf -o lockers.pdf
+```
+
+The page returns `200` HTML. Each download returns `200` with `Content-Disposition:
+attachment` and a filename `lockers-YYYY-MM-DD.xlsx` or `.pdf`, dated on the day of
+download. Content types are
+`application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` and `application/pdf`.
+An empty supervisor roster still produces valid files containing the column headings.
 
 ### Certificate copies
 
@@ -144,11 +197,11 @@ copies; deleting a copy is immediate and permanent.
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | `GET` | `/export.xlsx` | session | The grid as an Excel workbook, plus a Diagnostics sheet. |
-| `GET` | `/export.pdf` | session | The grid as a single-page portrait PDF. |
+| `GET` | `/export.pdf` | session | The grid as a portrait PDF with repeated column headings. |
 | `GET` | `/workplace-first-aiders.xlsx` | session | Workplace first aiders with only name, Standard First Aid expiry, and CPR-C expiry. |
 | `GET` | `/workplace-first-aiders.pdf` | session | The same workplace first aiders list as a portrait PDF. |
 | `GET` | `/diagnostics` | session | Stored notes from the latest scan. |
-| `GET` | `/reminders` | session | The forward reminder schedule and the sent history. Read-only. |
+| `GET` | `/reminders` | session | Upcoming certification and supervisor locker reminders, including manual dates before the first scan, and sent history. Read-only. |
 
 The full-grid attachments are named `certifications-YYYY-MM-DD.xlsx` or `.pdf`; the companion
 attachments are named `workplace-first-aiders-YYYY-MM-DD.xlsx` or `.pdf`. Dates come from
@@ -158,6 +211,11 @@ completed:
 ```json
 {"detail": "No completed scan yet."}
 ```
+
+Locker downloads use the current roster and date; the four certification downloads above
+require a completed scan. The daily reminder pass also works before a scan when manual
+certification dates or supervisor locker dates are present. Both locker expiry types use
+the same 30-, 14-, and 7-day ladder and notification deduplication as certifications.
 
 ### Health
 
@@ -302,5 +360,19 @@ every other module takes that as given.
         - MemberRow
         - Grid
         - build_grid
+
+### Locker reports
+
+The web route builds a `LockerReport` from active supervisors. It carries the current date
+and rows with locker details and expiry statuses, and is shared with both download
+renderers. `LockerExpiry.for_date` uses the grid's status thresholds.
+
+::: lss_report.lockers
+    options:
+      members:
+        - LOCKER_HEADINGS
+        - LockerExpiry
+        - LockerRow
+        - LockerReport
 
 {{ support() }}
