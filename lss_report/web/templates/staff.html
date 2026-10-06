@@ -36,9 +36,10 @@
       <input id="email-{{ key }}" type="email" name="email" value="{{ member.email or '' if member else '' }}">
     </div>
   </div>
-  <p><label><input type="checkbox" name="away" value="true" {% if member and member.away %}checked{% endif %}> Away </label></p>
-
-  <p><label><input type="checkbox" name="supervisor" value="true" {% if member and member.supervisor %}checked{% endif %}> Supervisor</label></p>
+  <div class="staff-flags">
+    <label><input type="checkbox" name="away" value="true" {% if member and member.away %}checked{% endif %}> Away</label>
+    <label><input type="checkbox" name="supervisor" value="true" {% if member and member.supervisor %}checked{% endif %}> Supervisor</label>
+  </div>
   <hr>
   <h3>Lifeguarding certification dates</h3>
   <div class="fields">
@@ -52,7 +53,7 @@
   </div>
   <hr>
   <h3>Locker information</h3>
-  <div class="fields">
+  <div class="fields locker-fields">
     <div>
       <label for="locker-{{ key }}">Locker number</label>
       <input id="locker-{{ key }}" type="text" name="locker_number" value="{{ member.locker_number or '' if member else '' }}">
