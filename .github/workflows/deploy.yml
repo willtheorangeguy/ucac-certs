@@ -28,7 +28,8 @@ jobs:
   # workflows start at once and nothing stops a failing commit from shipping to the
   # only instance, which holds real staff records.
   test:
-    runs-on: ubuntu-latest
+    # Playwright 1.60 does not support the Ubuntu 26.04 latest runner.
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
@@ -49,7 +50,7 @@ jobs:
 
   deploy:
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6

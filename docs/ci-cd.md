@@ -20,6 +20,8 @@ graph LR
 `.github/workflows/ci.yml` runs on every push, every pull request, and on demand. It
 installs the package with its test extra on Python 3.13, installs Firefox and its Linux
 dependencies, and runs `pytest`. Browser tests intercept fixture responses locally.
+Application jobs use Ubuntu 24.04 explicitly to match the pinned Playwright release;
+the moving `ubuntu-latest` label can select an unsupported operating system.
 
 ```yaml title=".github/workflows/ci.yml"
 permissions:
@@ -27,7 +29,7 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
 ```
 
