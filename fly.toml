@@ -10,6 +10,7 @@ primary_region = "yyz"
   PORT = "8000"
   SCAN_HOUR = "6"
   REMINDER_HOUR = "7"
+  SOCIETY_TRANSPORT = "worker"
 
 [mounts]
   source = "lss_data"
@@ -33,6 +34,6 @@ primary_region = "yyz"
 
 [[vm]]
   size = "shared-cpu-1x"
-  memory = "256mb"
+  memory = "1gb"
   # A second machine would fight over the volume and double-fire the scheduler.
   count = 1

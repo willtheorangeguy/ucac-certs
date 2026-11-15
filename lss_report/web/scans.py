@@ -10,7 +10,7 @@ from ..awards import CertColumn
 from ..grid import Grid, build_grid
 from ..models import MemberRecord, ReportData, StaffMember
 from ..redcross import RedCrossClient, certifications_from, last_name_for
-from ..scraper import SocietyClient, UpstreamError
+from ..scraper import SocietyLookup, UpstreamError, society_client
 from .repository import ScanRepository, Staff, StaffRepository
 
 logger = logging.getLogger(__name__)
@@ -24,13 +24,14 @@ class Verification:
     error: str | None = None
 
 
-def verify_member_code(member_code: str, name: str, *, client: SocietyClient | None = None) -> Verification:
+def verify_member_code(member_code: str, name: str, *, client: SocietyLookup | None = None,
+                       remote_queue=None) -> Verification:
     """Check an LS# against the Society at entry time, so a typo is caught immediately."""
     from ..models import StaffMember
 
-    society = client or SocietyClient()
     try:
-        record = society.fetch(StaffMember(name=name or member_code, member_code=member_code.upper()))
+        with society_client(client, remote_queue=remote_queue) as society:
+            record = society.fetch(StaffMember(name=name or member_code, member_code=member_code.upper()))
     except UpstreamError as exc:
         return Verification(ok=False, error=str(exc))
     if record.error:
@@ -104,7 +105,7 @@ def _add_red_cross(record: MemberRecord, member: Staff, client: RedCrossClient) 
     record.red_cross_warning = "; ".join(warnings) or None
 
 
-def _fetch_society_profiles(member: Staff, client: SocietyClient) -> MemberRecord:
+def _fetch_society_profiles(member: Staff, client: SocietyLookup) -> MemberRecord:
     """Read every Society profile for one person and combine their awards."""
     profiles = [
         client.fetch(
@@ -151,8 +152,9 @@ def run_scan(
     scan_repo: ScanRepository,
     *,
     triggered_by: str,
-    client: SocietyClient | None = None,
+    client: SocietyLookup | None = None,
     red_cross: RedCrossClient | None = None,
+    remote_queue=None,
 ) -> Grid | None:
     roster = staff_repo.active()
     scan_id = scan_repo.start(triggered_by=triggered_by)
@@ -160,15 +162,15 @@ def run_scan(
         scan_repo.fail(scan_id, "The roster is empty. Add staff before running a scan.")
         return None
 
-    society = client or SocietyClient()
     validator = red_cross or RedCrossClient()
     try:
         records = []
-        for member in roster:
-            record = _fetch_society_profiles(member, society)
-            if not record.error:
-                _add_red_cross(record, member, validator)
-            records.append(record)
+        with society_client(client, remote_queue=remote_queue) as society:
+            for member in roster:
+                record = _fetch_society_profiles(member, society)
+                if not record.error:
+                    _add_red_cross(record, member, validator)
+                records.append(record)
     except UpstreamError as exc:
         scan_repo.fail(scan_id, str(exc))
         return None
@@ -177,6 +179,13 @@ def run_scan(
         scan_repo.fail(scan_id, f"{type(exc).__name__}: {exc}")
         return None
 
+    def identity(member):
+        return (member.id, member.name, member.member_codes, member.away,
+                member.red_cross_fa_number, member.red_cross_cpr_number)
+
+    if [identity(member) for member in roster] != [identity(member) for member in staff_repo.active()]:
+        scan_repo.fail(scan_id, "The roster changed during the scan. Run it again to collect current records.")
+        return None
     grid = build_grid(ReportData(generated_at=datetime.now(TIMEZONE), records=records))
     scan_repo.store(scan_id, grid, {member.member_code: member.id for member in roster})
 
@@ -190,9 +199,10 @@ def run_scan(
 class ScanRunner:
     """Runs one scan at a time on a worker thread; the request returns immediately."""
 
-    def __init__(self, staff_repo: StaffRepository, scan_repo: ScanRepository) -> None:
+    def __init__(self, staff_repo: StaffRepository, scan_repo: ScanRepository, *, remote_queue=None) -> None:
         self.staff_repo = staff_repo
         self.scan_repo = scan_repo
+        self.remote_queue = remote_queue
         self._lock = threading.Lock()
         self._thread: threading.Thread | None = None
 
@@ -207,7 +217,7 @@ class ScanRunner:
             self._thread = threading.Thread(
                 target=run_scan,
                 args=(self.staff_repo, self.scan_repo),
-                kwargs={"triggered_by": triggered_by},
+                kwargs={"triggered_by": triggered_by, "remote_queue": self.remote_queue},
                 daemon=True,
                 name="lss-scan",
             )

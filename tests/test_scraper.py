@@ -4,7 +4,7 @@ import pytest
 
 from lss_report.awards import CPR_C, FIRST_AID, NATIONAL_LIFEGUARD
 from lss_report.models import StaffMember
-from lss_report.scraper import ParseError, SocietyClient, parse_member_page
+from lss_report.scraper import ParseError, SocietyClient, UpstreamError, parse_member_page
 
 FIXTURE = Path(__file__).parent / "fixtures" / "member.html"
 
@@ -105,6 +105,32 @@ def test_rate_limit_is_retried():
     record = client.fetch(StaffMember("Example Staff Member", "ABC123"))
     assert record.error is None
     assert waits == [1.0]
+
+
+@pytest.mark.parametrize("status", [200, 403, 503])
+@pytest.mark.parametrize("ray_id", [None, "example-ray-YYZ"])
+def test_cloudflare_challenge_fails_without_retrying_or_parsing(status, ray_id):
+    headers = {"cf-mitigated": "challenge"}
+    if ray_id:
+        headers["cf-ray"] = ray_id
+    session = FakeSession([FakeResponse(status, "<title>Just a moment...</title>", headers)])
+    waits = []
+    client = SocietyClient(session=session, sleep=waits.append)
+
+    with pytest.raises(UpstreamError, match="Cloudflare browser verification") as error:
+        client.fetch(StaffMember("Example Staff Member", "ABC123"))
+
+    assert f"HTTP {status}" in str(error.value)
+    assert "approved automated access" in str(error.value)
+    if ray_id:
+        assert ray_id in str(error.value)
+    assert waits == []
+
+
+def test_plain_403_is_not_misreported_as_a_cloudflare_challenge():
+    client = SocietyClient(session=FakeSession([FakeResponse(403)]), sleep=lambda _: None)
+    with pytest.raises(UpstreamError, match=r"^Society lookup returned HTTP 403\.$"):
+        client.fetch(StaffMember("Example Staff Member", "ABC123"))
 
 
 EXPIRED_ONLY_CARD = """<html><body>

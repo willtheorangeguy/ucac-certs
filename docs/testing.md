@@ -1,13 +1,14 @@
 # Testing
 
 The suite covers certification scans, roster editing, supervisor lockers, downloads, and
-reminders. A full run takes about fifteen seconds. It makes no network
-calls — the Society and the Red Cross are each represented by stored HTML fixtures — so it
-is safe to run anywhere, including CI.
+reminders. Browser tests launch real headless Firefox with intercepted fixture responses;
+they do not contact the Society or the Red Cross. Test duration depends on browser startup
+and installed dependencies.
 
 ## Running the tests
 
 ```bash
+.venv/bin/python -m playwright install --with-deps firefox
 .venv/bin/python -m pytest
 ```
 

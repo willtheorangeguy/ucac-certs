@@ -15,8 +15,8 @@ the repository or builds the Docker image from it.
 | Docker | any recent | Only for the container path |
 | Outbound HTTPS to `lifesaving.org` | — | Every scan reads the Society member directory |
 
-Runtime dependencies are resolved by pip and need no separate installation: `requests`
-and `beautifulsoup4` for the scan, `openpyxl` for Excel, `reportlab` for PDF, and
+Python dependencies are resolved by pip: `playwright` and `beautifulsoup4` for Society
+lookups, `requests` for Red Cross verification, `openpyxl` for Excel, `reportlab` for PDF, and
 `fastapi`, `uvicorn`, `jinja2`, `itsdangerous`, and `python-multipart` for the web
 application.
 
@@ -31,6 +31,7 @@ The recommended path, and the one the rest of these pages assume.
     cd ucac-certs
     py -3.11 -m venv .venv
     .venv\Scripts\python.exe -m pip install ".[test]"
+    .venv\Scripts\python.exe -m playwright install firefox
     ```
 
 === "macOS / Linux"
@@ -40,9 +41,13 @@ The recommended path, and the one the rest of these pages assume.
     cd ucac-certs
     python3 -m venv .venv
     .venv/bin/pip install '.[test]'
+    .venv/bin/python -m playwright install --with-deps firefox
     ```
 
 Dropping `[test]` installs the runtime only. Keep it if you intend to run the suite.
+The Firefox download is still required. Re-run the browser install command after changing
+the Playwright version. Docker installs Firefox and its Linux dependencies at build time
+and checks that the unprivileged application user can launch it.
 
 Installing the package registers two console scripts:
 
@@ -60,7 +65,7 @@ live scan against `staff.json`, and writes `report.pdf` and `report.xlsx`:
 .\scripts\run-local.ps1
 ```
 
-Pass `-SkipInstall` on subsequent runs to skip the pip step. The script fails with a
+Pass `-SkipInstall` on subsequent runs to skip package and Firefox installation. The script fails with a
 clear message if `staff.json` is absent — copy `staff.example.json` and fill it in first.
 
 !!! warning

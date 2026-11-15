@@ -16,6 +16,9 @@ if (-not (Test-Path -LiteralPath $pythonExecutable)) {
 
 if (-not $SkipInstall) {
     & $pythonExecutable -m pip install -e "$projectRoot[test]"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    & $pythonExecutable -m playwright install firefox
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
 if (-not (Test-Path -LiteralPath $staffFile)) {

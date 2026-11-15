@@ -10,6 +10,10 @@ data/
 *.sqlite3*
 staff.json
 .env
+.env.*
+.venv-worker/
+output/
+.playwright-cli/
 report.pdf
 report.xlsx
 *.pdf

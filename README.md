@@ -169,7 +169,15 @@ touching the scheduler or the dedupe logic.
 
 ## Deployment
 
-One always-on Fly machine (`shared-cpu-1x`, 256 MB, ~$2/month) with a volume for SQLite.
+One always-on Fly machine (`shared-cpu-1x`, 1 GB RAM) with a volume for SQLite.
+Production delegates Society lookups to a local Windows scanner using headless Firefox
+through Playwright. **Run scan now** starts the lookup on that computer and returns the
+results to Fly over HTTPS. The scanner must be running, awake, and online. See
+[local scanner setup](docs/deployment.md#local-scanner) for installation and sign-in startup.
+
+Direct local reports also use Firefox. Docker installs the browser;
+source installations also require `python -m playwright install firefox` (add
+`--with-deps` on Linux). Scans reuse one browser session and release it when finished.
 It stays always-on deliberately: the in-process scheduler needs a live process, and a Fly
 volume attaches to only one machine, so scale-to-zero and a separate scheduler machine are
 both ruled out.

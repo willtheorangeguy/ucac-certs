@@ -71,6 +71,23 @@ CREATE TABLE IF NOT EXISTS scan (
     detail       TEXT
 );
 
+-- Short-lived Society page requests for an outbound-polling local scanner.
+-- HTML is removed as soon as the waiting request consumes it, or on expiry.
+CREATE TABLE IF NOT EXISTS worker_job (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_code TEXT NOT NULL,
+    status TEXT NOT NULL,
+    lease_hash TEXT,
+    created_at REAL NOT NULL,
+    completed_at REAL,
+    html TEXT,
+    error TEXT
+);
+CREATE TABLE IF NOT EXISTS worker_presence (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    seen_at REAL NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS scan_result (
     id           INTEGER PRIMARY KEY,
     scan_id      INTEGER NOT NULL REFERENCES scan(id) ON DELETE CASCADE,

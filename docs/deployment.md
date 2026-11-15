@@ -172,11 +172,67 @@ Scale-to-zero is possible, but it means moving the schedule out to an external c
 calls an authenticated trigger endpoint — the inbound request is what wakes the machine —
 and running with `DISABLE_SCHEDULER=1` so the in-process timer does not double-fire.
 
-The economics do not obviously justify it. At Fly's published rates a `shared-cpu-1x` with
-256 MB is roughly $2 per month and the 1 GB volume about 15 cents, and the volume is billed
-whether the machine runs or not. Scale-to-zero saves most of the compute — on the order of
-$20 a year — in exchange for an external dependency whose silent failure would stop
-reminders without anyone noticing.
+The checked-in configuration uses a `shared-cpu-1x` with 1 GB RAM to accommodate the
+web application and one headless Firefox session. Monitor memory during a full scan
+before reducing that allocation. The image includes the browser and its Linux libraries;
+the build checks browser launch as the unprivileged app user. `SOCIETY_TRANSPORT=firefox`
+is available for server-side diagnostics. Production uses `SOCIETY_TRANSPORT=worker`
+because Cloudflare challenges Firefox from Fly's network. Check current Fly pricing for
+the compute allocation and persistent volume; both contribute to hosting costs.
+
+A successful local Firefox scan does not establish access from Fly's network. Validate
+a deployed scan before relying on the schedule. Cloudflare can still challenge Firefox
+on Fly; the app records that failure and keeps the latest completed scan available.
+If verification remains blocked, arrange approved automated access with the Society.
+
+## Local scanner
+
+The production scan button and Monday scheduler delegate Society navigation to a local
+Windows computer. The app continues to parse pages, save scan results, render exports,
+and send reminders. The local process makes outbound HTTPS requests only; no inbound
+port or firewall exception is needed.
+
+Configure `LOCAL_WORKER_TOKEN` as a separate random secret of at least 32 characters in
+Fly secrets and in an ignored local `.env.worker`. Keep the application's session secret
+and manager credentials on Fly. Restrict the local file's permissions to its user.
+
+Start from the repository's credential-free template:
+
+```powershell
+Copy-Item worker.example.env .env.worker
+```
+
+Fill in the dedicated worker credential before starting the scanner. The template's
+empty token is intentionally rejected by the worker.
+
+```dotenv title=".env.worker"
+WORKER_BASE_URL=https://ucac-certs.fly.dev
+LOCAL_WORKER_TOKEN=replace-with-a-separate-random-secret
+```
+
+Install and start the scanner, with automatic startup at Windows sign-in:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-worker.ps1 -Install -EnableStartup
+```
+
+This creates `.venv-worker`, installs the pinned Firefox version, and adds a
+**UCAC Local Scanner** shortcut to the current user's Startup folder. The process runs
+without a console window and reuses Firefox while work is arriving. After 60 idle
+seconds it closes Firefox; polling continues. Logs rotate at 1 MB in
+`data/local-worker.log` and contain status information rather than member IDs or pages.
+
+To restart the scanner after it stops:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-worker.ps1
+```
+
+Only one local scanner instance can hold the local lock. Removing the Startup shortcut
+disables automatic startup. Keep the computer awake and signed in during a scan. A
+scheduled Monday scan also requires the worker to be available at the configured hour;
+run a manual scan after reconnecting if the scheduled attempt failed while offline.
+The server never silently falls back to Fly-based Society lookups.
 
 ## Operations
 

@@ -15,6 +15,14 @@ class ConfigurationError(ValueError):
     pass
 
 
+def society_transport(environ: dict[str, str] | None = None) -> str:
+    env = os.environ if environ is None else environ
+    value = env.get("SOCIETY_TRANSPORT", "firefox").strip().lower() or "firefox"
+    if value not in {"firefox", "http", "worker"}:
+        raise ConfigurationError("SOCIETY_TRANSPORT must be firefox, http, or worker.")
+    return value
+
+
 def load_env_file(path: Path) -> None:
     """Load a small dotenv-style file without overriding existing environment values."""
     try:

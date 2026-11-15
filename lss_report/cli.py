@@ -6,12 +6,12 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from .config import ConfigurationError, load_env_file, load_staff_file
+from .config import ConfigurationError, load_env_file, load_staff_file, society_transport
 from .excel import build_workbook
 from .grid import build_grid
 from .models import ReportData
 from .pdf import build_pdf
-from .scraper import SocietyClient, UpstreamError
+from .scraper import UpstreamError, society_client
 
 TIMEZONE = ZoneInfo("America/Edmonton")
 
@@ -41,6 +41,7 @@ def main(argv: list[str] | None = None) -> int:
         if not args.staff_file:
             raise ConfigurationError("Provide --staff-file.")
         staff = load_staff_file(args.staff_file)
+        society_transport()
         if args.output is None and args.excel is None:
             raise ConfigurationError("Choose --output and/or --excel.")
     except ConfigurationError as exc:
@@ -48,8 +49,8 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     try:
-        client = SocietyClient()
-        records = [client.fetch(person) for person in staff]
+        with society_client() as client:
+            records = [client.fetch(person) for person in staff]
         grid = build_grid(ReportData(generated_at=datetime.now(TIMEZONE), records=records))
         if args.output:
             build_pdf(grid, args.output)

@@ -41,3 +41,16 @@ def test_the_ends_of_the_clock_are_allowed(value):
 
 def test_an_empty_hour_falls_back_to_the_default():
     assert load_settings(_env(SCAN_HOUR="")).scan_hour == 6
+
+
+def test_unknown_society_transport_is_refused():
+    with pytest.raises(ConfigurationError, match="SOCIETY_TRANSPORT"):
+        load_settings(_env(SOCIETY_TRANSPORT="chrome"))
+
+
+def test_worker_transport_requires_a_scoped_credential():
+    with pytest.raises(ConfigurationError, match="LOCAL_WORKER_TOKEN"):
+        load_settings(_env(SOCIETY_TRANSPORT="worker"))
+    settings = load_settings(_env(SOCIETY_TRANSPORT="worker", LOCAL_WORKER_TOKEN="x" * 43))
+    assert settings.society_transport == "worker"
+    assert "x" * 43 not in repr(settings)

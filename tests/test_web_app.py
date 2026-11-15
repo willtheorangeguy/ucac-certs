@@ -75,6 +75,11 @@ def test_adding_staff_verifies_the_member_id_first(signed_in, database, monkeypa
     calls = []
 
     def fake_verify(code, name, **kwargs):
+        import asyncio
+
+        # Sync Playwright must never run on FastAPI's asyncio event loop.
+        with pytest.raises(RuntimeError):
+            asyncio.get_running_loop()
         calls.append(code)
         return Verification(ok=True, society_name="Robin A Rivers")
 

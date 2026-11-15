@@ -1,17 +1,24 @@
-FROM python:3.13-slim
+FROM python:3.13-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    DATABASE_PATH=/data/lss.sqlite3
+    DATABASE_PATH=/data/lss.sqlite3 \
+    PLAYWRIGHT_BROWSERS_PATH=/opt/playwright
 
 WORKDIR /app
 
 COPY pyproject.toml ./
 COPY lss_report ./lss_report
 RUN pip install --no-cache-dir .
+RUN python -m playwright install --with-deps firefox && rm -rf /var/lib/apt/lists/*
 
 RUN useradd --create-home --uid 10001 app && mkdir -p /data && chown app:app /data
+
+# Catch browser binary, library and permission failures before an image is deployed.
+USER app
+RUN python -c "from playwright.sync_api import sync_playwright; p=sync_playwright().start(); b=p.firefox.launch(); b.close(); p.stop()"
+USER root
 
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh

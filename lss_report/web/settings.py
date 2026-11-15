@@ -4,7 +4,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ..config import ConfigurationError
+from ..config import ConfigurationError, society_transport
 
 DEFAULT_DATABASE = Path("data/lss.sqlite3")
 DEFAULT_UPLOADS = Path("data/uploads")
@@ -47,6 +47,8 @@ class Settings:
     scan_hour: int = 6
     reminder_hour: int = 7
     reminder_days: tuple[int, ...] = (30, 14, 7)
+    society_transport: str = "firefox"
+    worker_token: str | None = field(default=None, repr=False)
     warnings: tuple[str, ...] = field(default=())
 
     def is_manager(self, email: str) -> bool:
@@ -63,6 +65,10 @@ class Settings:
 
 def load_settings(environ: dict[str, str] | None = None) -> Settings:
     env = dict(os.environ if environ is None else environ)
+    transport = society_transport(env)
+    worker_token = env.get("LOCAL_WORKER_TOKEN", "").strip() or None
+    if transport == "worker" and (not worker_token or len(worker_token) < 32):
+        raise ConfigurationError("Worker transport requires LOCAL_WORKER_TOKEN with at least 32 characters.")
     warnings: list[str] = []
 
     secret = env.get("SESSION_SECRET", "").strip()
@@ -98,4 +104,6 @@ def load_settings(environ: dict[str, str] | None = None) -> Settings:
         scan_hour=_hour(env, "SCAN_HOUR", "6"),
         reminder_hour=_hour(env, "REMINDER_HOUR", "7"),
         warnings=tuple(warnings),
+        society_transport=transport,
+        worker_token=worker_token,
     )

@@ -35,6 +35,9 @@ Names are used verbatim — there is no prefix scheme.
 | `SCAN_HOUR` | integer | `6` | Hour, 0–23, at which the Monday scan runs, in `America/Edmonton`. |
 | `REMINDER_HOUR` | integer | `7` | Hour, 0–23, at which the daily reminder pass runs, in `America/Edmonton`. |
 | `DISABLE_SCHEDULER` | flag | unset | Set to `1`, `true`, or `yes` to start the app without the background scheduler. |
+| `SOCIETY_TRANSPORT` | string | `firefox` | One of `firefox`, `http`, or `worker`. Production uses `worker` to delegate Society navigation to a local computer. The CLI supports `firefox` and `http`. Invalid values stop startup. |
+| `LOCAL_WORKER_TOKEN` | string | unset | Dedicated worker credential, at least 32 characters. Required for `worker` transport. Configure the same value in Fly secrets and the local worker's ignored `.env.worker`. This credential cannot sign in as a manager. |
+| `WORKER_BASE_URL` | URL | unset | Local worker only: the production application origin. Requires HTTPS, except for localhost development. |
 | `PORT` | integer | `8000` | Default for `--port`. The `--port` flag overrides it. |
 
 ### Validation
@@ -74,7 +77,24 @@ listed here so nobody hunts for an environment variable that does not exist.
 | Session lifetime | 30 days | `lss_report/web/settings.py` |
 | Sign-in rate limit | 5 attempts per 15 minutes, per address and per IP, counted separately for requesting a code and for guessing one | `lss_report/web/auth.py` |
 | "Expiring soon" threshold | 30 days | `lss_report/grid.py` |
-| Society request spacing | 1.1 seconds, 2 retries, 20-second timeout | `lss_report/scraper.py` |
+| Society request spacing | 1.1 seconds, 2 retries; Firefox navigation timeout 30 seconds, challenge wait 15 seconds | `lss_report/browser.py` |
+
+Firefox sessions run in worker threads, with at most one browser session per application
+process. A staff verification attempted during a scan returns a busy error after two
+seconds; retry when the scan finishes. Each scan reuses one session and closes it on
+success or failure. Browser profiles, screenshots, and traces are not saved.
+
+With `SOCIETY_TRANSPORT=worker`, the web server queues member-ID requests instead of
+launching Firefox. A local scanner polls over HTTPS and returns identity pages; the
+server validates the member ID and derives certification dates. Each request has a
+150-second deadline and a single-use lease. Returned pages are deleted from the queue
+after consumption or expiry. Member names, emails and the roster are not sent to the
+scanner. The scanner must be running and its computer must be awake and online.
+
+The dashboard displays scanner connectivity. A worker is considered online for 30
+seconds after a poll, or while it has an unexpired claimed request. An offline scanner
+fails lookups without replacing the latest completed scan. A roster identity change
+during a scan discards that scan's results rather than attaching stale awards.
 
 ## Certification validity periods
 
@@ -173,5 +193,7 @@ rejected. `staff.json` is gitignored because it carries staff personal informati
 | Reminders never send | `RESEND_API_KEY` is unset, or the staff have no email address on their roster entry. Both are silent by design. |
 | The weekly scan never runs | `DISABLE_SCHEDULER` is set. An out-of-range `SCAN_HOUR` cannot cause this — it is refused at startup. |
 | A scan shows as `failed` with "Interrupted by a restart." | The process was replaced while the scan was running, usually by a deploy. Run it again. |
+| A scan fails with "Cloudflare browser verification" | The Society's Cloudflare protection returned a browser challenge. Confirm `SOCIETY_TRANSPORT=firefox`. If Firefox is also challenged, ask the Society for approved automated access; include the Cloudflare Ray ID and time of failure. |
+| "Unable to start Firefox" | Install the browser matching the pinned Playwright package with `python -m playwright install --with-deps firefox`. Docker installs it during the image build. |
 
 {{ support() }}

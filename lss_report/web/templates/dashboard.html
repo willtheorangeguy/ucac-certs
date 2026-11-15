@@ -6,7 +6,7 @@
 
 <div class="panel">
   <form method="post" action="/scan" style="display:inline">
-    <button type="submit" {% if running %}disabled{% endif %}>
+    <button id="scan-button" type="submit" {% if running or (worker_mode and not worker_online) %}disabled{% endif %}>
       {% if running %}Scan running…{% endif %}{% if not running %}Run scan now{% endif %}
     </button>
   </form>
@@ -14,7 +14,13 @@
   <a class="button" href="/export.pdf">Download PDF</a>
   <a class="button" href="/workplace-first-aiders.xlsx">First Aiders Excel</a>
   <a class="button" href="/workplace-first-aiders.pdf">First Aiders PDF</a>
-  <p class="muted">
+  {% if worker_mode %}
+  <p class="muted" id="worker-status">
+    {% if worker_online %}Local scanner connected. Keep your scanner computer awake during the scan.
+    {% else %}Local scanner offline. Start it on your computer to run a scan.{% endif %}
+  </p>
+  {% endif %}
+  <p class="muted" id="scan-status">
     {% if latest %}
       Last scan {{ latest.started_at[:16] }} UTC — {{ latest.status }}
       {% if latest.detail %} — {{ latest.detail }}{% endif %}
@@ -78,4 +84,31 @@
   </table>
 </div>
 {% endif %}
+<script>
+  async function refreshScanStatus() {
+    try {
+      const response = await fetch('/scan/status', {cache: 'no-store'});
+      if (!response.ok || response.redirected) return;
+      const state = await response.json();
+      const button = document.getElementById('scan-button');
+      button.disabled = state.running || state.worker_online === false;
+      button.textContent = state.running ? 'Scan running…' : 'Run scan now';
+      const worker = document.getElementById('worker-status');
+      if (worker) worker.textContent = state.worker_online
+        ? 'Local scanner connected. Keep your scanner computer awake during the scan.'
+        : 'Local scanner offline. Start it on your computer to run a scan.';
+      const latest = state.latest;
+      if (latest) document.getElementById('scan-status').textContent =
+        'Last scan ' + latest.started_at.slice(0,16) + ' UTC — ' + latest.status +
+        (latest.detail ? ' — ' + latest.detail : '');
+      if (state.running) sessionStorage.setItem('scan-in-progress', '1');
+      else if (sessionStorage.getItem('scan-in-progress')) {
+        sessionStorage.removeItem('scan-in-progress');
+        if (latest && latest.status === 'complete') window.location.reload();
+      }
+    } catch (_) { /* Keep the current view if the network is unavailable. */ }
+  }
+  setInterval(refreshScanStatus, 3000);
+  refreshScanStatus();
+</script>
 {% endblock %}

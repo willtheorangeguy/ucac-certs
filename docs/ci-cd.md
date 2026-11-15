@@ -18,7 +18,8 @@ graph LR
 ### CI
 
 `.github/workflows/ci.yml` runs on every push, every pull request, and on demand. It
-installs the package with its test extra on Python 3.13 and runs `pytest`.
+installs the package with its test extra on Python 3.13, installs Firefox and its Linux
+dependencies, and runs `pytest`. Browser tests intercept fixture responses locally.
 
 ```yaml title=".github/workflows/ci.yml"
 permissions:

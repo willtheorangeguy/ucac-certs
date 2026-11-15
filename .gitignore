@@ -1,4 +1,5 @@
 .venv/
+.venv-worker/
 __pycache__/
 .pytest_cache/
 *.py[cod]

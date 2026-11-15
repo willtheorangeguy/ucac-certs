@@ -41,6 +41,9 @@ jobs:
       - name: Install application
         run: python -m pip install '.[test]'
 
+      - name: Install Firefox for fixture-only browser tests
+        run: python -m playwright install --with-deps firefox
+
       - name: Run tests
         run: python -m pytest
 

@@ -20,6 +20,7 @@ From the repository root:
 ```bash
 python -m venv .venv
 .venv/bin/pip install '.[test]'
+.venv/bin/python -m playwright install --with-deps firefox
 ```
 
 On Windows the interpreter lives at `.venv\Scripts\python.exe` instead. Docker and the

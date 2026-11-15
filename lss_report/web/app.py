@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import hmac
+import json
 import os
 import tempfile
 from contextlib import asynccontextmanager
@@ -10,6 +12,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, Form, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
+from starlette.concurrency import run_in_threadpool
 # Starlette's class, not FastAPI's subclass of it: a hand-parsed form yields the
 # former, which is not an instance of the latter.
 from starlette.datastructures import UploadFile
@@ -42,6 +45,7 @@ from .repository import (
 from .scans import TIMEZONE, ScanRunner, verify_member_code, verify_red_cross_number
 from .scheduler import Scheduler
 from .settings import LOGIN_CODE_MINUTES, Settings, load_settings
+from .worker import ERRORS, MAX_HTML_BYTES, WorkerQueue
 
 logger = logging.getLogger(__name__)
 TEMPLATES = Path(__file__).parent / "templates"
@@ -53,7 +57,8 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     staff_repo = StaffRepository(database)
     scan_repo = ScanRepository(database)
     auth = Auth(database, settings)
-    runner = ScanRunner(staff_repo, scan_repo)
+    worker_queue = WorkerQueue(database) if settings.society_transport == "worker" else None
+    runner = ScanRunner(staff_repo, scan_repo, remote_queue=worker_queue)
     store = FileStore(settings.uploads_path)
     email_channel = EmailChannel(settings)
     reminders = Reminders(database, settings, [email_channel])
@@ -63,6 +68,8 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         auth.purge_expired()
+        if worker_queue is not None:
+            worker_queue.reset()
         abandoned = scan_repo.abandon_running()
         if abandoned:
             logger.warning("Marked %d scan(s) failed that a restart interrupted", abandoned)
@@ -81,6 +88,7 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
     app.state.scan_repo = scan_repo
     app.state.runner = runner
     app.state.file_store = store
+    app.state.worker_queue = worker_queue
     app.state.reminders = reminders
     app.state.auth = auth
 
@@ -92,6 +100,52 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
         if email is None:
             raise HTTPException(status_code=303, headers={"Location": "/login"})
         return email
+
+    def worker_auth(request: Request):
+        if worker_queue is None or not settings.worker_token:
+            raise HTTPException(status_code=404)
+        scheme, _, supplied = request.headers.get("authorization", "").partition(" ")
+        if scheme.lower() != "bearer" or not hmac.compare_digest(
+                supplied.encode(), settings.worker_token.encode()):
+            raise HTTPException(status_code=401, detail="Invalid scanner credential.")
+
+    @app.post("/worker/claim", dependencies=[Depends(worker_auth)])
+    def worker_claim():
+        job = worker_queue.claim()
+        if job is None:
+            return Response(status_code=204, headers={"Cache-Control": "no-store"})
+        from fastapi.responses import JSONResponse
+        return JSONResponse(job, headers={"Cache-Control": "no-store"})
+
+    @app.post("/worker/jobs/{job_id}", dependencies=[Depends(worker_auth)])
+    async def worker_result(job_id: int, request: Request):
+        data = bytearray()
+        async for chunk in request.stream():
+            data.extend(chunk)
+            if len(data) > MAX_HTML_BYTES + 2048:
+                raise HTTPException(status_code=413, detail="Scanner response is too large.")
+        try:
+            payload = json.loads(data)
+            if not isinstance(payload, dict) or set(payload) != {"lease", "html", "error"}:
+                raise ValueError
+            lease, html, error = (payload[key] for key in ("lease", "html", "error"))
+            if not isinstance(lease, str) or not 32 <= len(lease) <= 128:
+                raise ValueError
+            if html is not None and (not isinstance(html, str) or len(html.encode()) > MAX_HTML_BYTES):
+                raise ValueError
+            if error is not None and (not isinstance(error, str) or error not in ERRORS):
+                raise ValueError
+            if error is not None and html is not None:
+                raise ValueError
+        except (ValueError, TypeError, KeyError):
+            raise HTTPException(status_code=400, detail="Invalid scanner response.") from None
+        if not worker_queue.complete(job_id, lease, html, error):
+            raise HTTPException(status_code=409, detail="Scanner request expired or already completed.")
+        return Response(status_code=204)
+
+    async def verify_society(code, name):
+        kwargs = {"remote_queue": worker_queue} if worker_queue is not None else {}
+        return await run_in_threadpool(verify_member_code, code, name, **kwargs)
 
     def render(request: Request, template: str, **context) -> HTMLResponse:
         return templates.TemplateResponse(
@@ -194,6 +248,8 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
             running=runner.running,
             statuses=CellStatus,
             has_scan=scan_id is not None,
+            worker_mode=worker_queue is not None,
+            worker_online=worker_queue.online() if worker_queue is not None else None,
         )
 
     @app.post("/scan")
@@ -203,7 +259,8 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
     @app.get("/scan/status")
     def scan_status(user: str = Depends(current_user)):
-        return {"running": runner.running, "latest": scan_repo.latest()}
+        return {"running": runner.running, "latest": scan_repo.latest(),
+                "worker_online": worker_queue.online() if worker_queue is not None else None}
 
     # --- roster --------------------------------------------------------
     @app.get("/staff", response_class=HTMLResponse)
@@ -276,22 +333,22 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
 
         # Verify against the Society now, so a typo is caught at entry rather than
         # surfacing as an empty row after the next scan.
-        result = verify_member_code(code, name)
+        result = await verify_society(code, name)
         if not result.ok:
             return _staff_error(f"{code}: {result.error}")
         if code_2:
-            second_result = verify_member_code(code_2, name)
+            second_result = await verify_society(code_2, name)
             if not second_result.ok:
                 return _staff_error(f"{code_2}: {second_result.error}")
         if red_cross_fa:
-            certificate = verify_red_cross_number(
-                red_cross_fa, result.society_name or name, expected_column=FIRST_AID
+            certificate = await run_in_threadpool(
+                verify_red_cross_number, red_cross_fa, result.society_name or name, expected_column=FIRST_AID
             )
             if not certificate.ok:
                 return _staff_error(f"Red Cross First Aid {red_cross_fa}: {certificate.error}")
         if red_cross_cpr:
-            certificate = verify_red_cross_number(
-                red_cross_cpr, result.society_name or name, expected_column=CPR_C
+            certificate = await run_in_threadpool(
+                verify_red_cross_number, red_cross_cpr, result.society_name or name, expected_column=CPR_C
             )
             if not certificate.ok:
                 return _staff_error(f"Red Cross CPR-C {red_cross_cpr}: {certificate.error}")
@@ -363,25 +420,25 @@ def create_app(settings: Settings | None = None, database: Database | None = Non
         # Only re-verify what actually changed: each check is a live request to an
         # outside service, and saving an email address should not cost any lookups.
         if code != member.member_code:
-            result = verify_member_code(code, name)
+            result = await verify_society(code, name)
             if not result.ok:
                 return _staff_error(f"{code}: {result.error}")
             changes["member_code"] = code
             changes["society_name"] = result.society_name
         if code_2 and code_2 != member.member_code_2:
-            second_result = verify_member_code(code_2, name)
+            second_result = await verify_society(code_2, name)
             if not second_result.ok:
                 return _staff_error(f"{code_2}: {second_result.error}")
         matching_name = changes.get("society_name") or member.society_name or name
         if red_cross_fa and red_cross_fa != member.red_cross_fa_number:
-            certificate = verify_red_cross_number(
-                red_cross_fa, matching_name, expected_column=FIRST_AID
+            certificate = await run_in_threadpool(
+                verify_red_cross_number, red_cross_fa, matching_name, expected_column=FIRST_AID
             )
             if not certificate.ok:
                 return _staff_error(f"Red Cross First Aid {red_cross_fa}: {certificate.error}")
         if red_cross_cpr and red_cross_cpr != member.red_cross_cpr_number:
-            certificate = verify_red_cross_number(
-                red_cross_cpr, matching_name, expected_column=CPR_C
+            certificate = await run_in_threadpool(
+                verify_red_cross_number, red_cross_cpr, matching_name, expected_column=CPR_C
             )
             if not certificate.ok:
                 return _staff_error(f"Red Cross CPR-C {red_cross_cpr}: {certificate.error}")

@@ -12,7 +12,7 @@ Supervisor lockers are entered by hand and need no scan.
 
 ```mermaid
 graph LR
-  S[Lifesaving Society<br>member directory] -->|one HTTPS GET per member| C[SocietyClient]
+  S[Lifesaving Society<br>member directory] -->|Firefox navigation per member| C[FirefoxSocietyClient]
   X2[Red Cross<br>certificate validator] -->|one HTTPS GET per certificate| C2[RedCrossClient]
   C -->|award titles and dates| A[awards.columns_for<br>awards.expiry_for]
   C2 -->|award title and expiry| A
@@ -57,10 +57,24 @@ purpose-issued first aid award outranks it.
 
 ### The collector
 
-`SocietyClient.fetch` performs one HTTPS request per member, spaced 1.1 seconds apart,
-retrying twice on 429 and 5xx while honouring `Retry-After`. A 302 back to the directory
-index means the member ID does not exist, and becomes a per-row error rather than an
-exception that kills the scan.
+`society_client` selects `FirefoxSocietyClient` by default. Each scan owns one browser
+session on its worker thread, spaces lookups 1.1 seconds apart, and retries twice on
+429 and transient 5xx responses while honouring `Retry-After`. A redirect back to the
+directory with an invalid-ID message becomes a per-row error. Browser challenges have
+a bounded wait and produce an upstream error if verification does not finish.
+
+Staff verification runs in the web framework's thread pool. A process-wide semaphore
+limits browser sessions to one, and context managers release the browser and slot on
+success or failure. The HTTP `SocietyClient` remains available through
+`SOCIETY_TRANSPORT=http` for troubleshooting.
+
+Production sets `SOCIETY_TRANSPORT=worker`. `RemoteSocietyClient` places short-lived
+member-ID requests in SQLite. `lss_report.worker` polls from the local computer using
+a scoped credential, navigates the fixed Society endpoint, and returns HTML using a
+single-use lease. `parse_member_page` still runs on the server. Both manual and scheduled
+scans, plus staff ID verification, use this path. Worker credentials cannot access
+manager pages or exports. Offline workers, expired replies, and roster changes fail a
+scan while preserving the latest completed results.
 
 `parse_member_page` reads the identity block and each certification card. A member ID
 mismatch is a hard error — the Society returned somebody else. A **name** mismatch is only

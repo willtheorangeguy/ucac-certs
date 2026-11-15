@@ -3,9 +3,10 @@ from __future__ import annotations
 import re
 import time
 import unicodedata
+from contextlib import contextmanager
 from datetime import datetime
 from email.utils import parsedate_to_datetime
-from typing import Callable
+from typing import Callable, Protocol
 from urllib.parse import quote
 
 import requests
@@ -24,6 +25,35 @@ class UpstreamError(RuntimeError):
 
 class ParseError(UpstreamError):
     pass
+
+
+class SocietyLookup(Protocol):
+    def fetch(self, staff: StaffMember) -> MemberRecord: ...
+
+
+@contextmanager
+def society_client(client: SocietyLookup | None = None, *, remote_queue=None):
+    """Own the transport only when we create it; injected clients belong to callers."""
+    if client is not None:
+        yield client
+        return
+    if remote_queue is not None:
+        from .web.worker import RemoteSocietyClient
+
+        yield RemoteSocietyClient(remote_queue)
+        return
+    from .config import society_transport
+
+    if society_transport() == "firefox":
+        from .browser import FirefoxSocietyClient
+
+        with FirefoxSocietyClient() as browser:
+            yield browser
+    elif society_transport() == "http":
+        with requests.Session() as session:
+            yield SocietyClient(session=session)
+    else:
+        raise UpstreamError("Worker transport requires the web application's local scanner connection.")
 
 
 def normalize_name(value: str) -> str:
@@ -174,6 +204,17 @@ class SocietyClient:
                 self.sleep(2**attempt)
                 continue
 
+            # Cloudflare documents this header as the reliable challenge signal.
+            # Retrying cannot solve a browser challenge with requests.Session.
+            if response.headers.get("cf-mitigated", "").casefold() == "challenge":
+                ray_id = response.headers.get("cf-ray")
+                reference = f" Cloudflare Ray ID: {ray_id}." if ray_id else ""
+                raise UpstreamError(
+                    f"The Society website requires Cloudflare browser verification "
+                    f"(HTTP {response.status_code}); automated lookups cannot complete it. "
+                    "Contact the Society to arrange approved automated access."
+                    + reference
+                )
             if response.status_code == 302:
                 location = response.headers.get("Location", "")
                 if not location.rstrip("/").endswith("/member-services/find-a-member"):
